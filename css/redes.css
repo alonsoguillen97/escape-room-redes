@@ -105,3 +105,13 @@ main { max-width: 1320px; }
   .ipcfg-grid, .grid2 { grid-template-columns: 1fr; }
   .term { height: 260px; font-size: 12.5px; }
 }
+
+/* informe PDF y ranking */
+.pdf-box { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; text-align: left; border: 3px solid var(--navy); border-radius: 16px; background: var(--lime-light); padding: 14px 18px; margin: 18px 0 8px; box-shadow: var(--shadow-sm); }
+.pdf-box p { margin: 4px 0 0; }
+.rank-status { font-weight: 800; font-size: .9rem; min-height: 1.2em; }
+.rank-status .btn { padding: 4px 12px; min-height: 0; font-size: .8rem; margin-left: 6px; }
+.linkish { font: inherit; background: none; border: 0; color: var(--gray-2); text-decoration: underline; cursor: pointer; }
+.cli-tip { margin-left: auto; align-self: center; font-size: .76rem; font-weight: 600; color: var(--gray-2); }
+.cli-tip code, .cli-tip kbd { font: 700 .74rem var(--mono); background: var(--white); border: 1.5px solid var(--navy); border-radius: 5px; padding: 0 4px; color: var(--navy); }
+@media (max-width: 900px) { .cli-tip { display: none; } }

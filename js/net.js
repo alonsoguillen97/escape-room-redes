@@ -455,7 +455,7 @@ Gateway of last resort is not set
     if (sess.mode === "user" || sess.mode === "priv") return exec(N, rn, sess, t, line, p, inv);
 
     // "do" en modos de configuración
-    if (kw(t[0], ["do"]) === "do") {
+    if (t[0].toLowerCase() === "do") {
       const sub = t.slice(1);
       if (!sub.length) return { out: "% Incomplete command.\n" };
       const r = exec(N, rn, { mode: "priv" }, sub, sub.join(" "), p, () => ({ out: "% Invalid input detected.\n" }));

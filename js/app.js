@@ -201,7 +201,7 @@
     CUR.pcView = CUR.pcView || {};
     const view = type === "router" ? "cli" : CUR.pcView[dev] || "cmd";
     dock.innerHTML = `<div class="dock-tabs">${CUR.tabs.map((t) => `<button type="button" class="dock-tab ${t === dev ? "on" : ""}" data-tab="${t}"><span>${DEVTYPE(t) === "router" ? "⌁" : DEVTYPE(t) === "server" ? "🗄" : "🖥"}</span>${t}<i data-close="${t}" title="Cerrar">✕</i></button>`).join("")}<span class="sim-tag">SIMULACIÓN</span></div>
-      ${type !== "router" ? `<div class="pc-views"><button type="button" class="${view === "cmd" ? "on" : ""}" data-view="cmd">Command Prompt</button><button type="button" class="${view === "ipcfg" ? "on" : ""}" data-view="ipcfg">IP Configuration</button></div>` : `<div class="pc-views"><button type="button" class="on">CLI · ${dev}</button></div>`}
+      ${type !== "router" ? `<div class="pc-views"><button type="button" class="${view === "cmd" ? "on" : ""}" data-view="cmd">Command Prompt</button><button type="button" class="${view === "ipcfg" ? "on" : ""}" data-view="ipcfg">IP Configuration</button></div>` : `<div class="pc-views"><button type="button" class="on">CLI · ${dev}</button><span class="cli-tip">Abreviaturas como en Packet Tracer: <code>en</code> · <code>conf t</code> · <code>int g0/0</code> · <code>no shut</code> · <code>sh ip int br</code> · <kbd>Tab</kbd> completa · <kbd>↑</kbd> repite · <code>?</code> ayuda</span></div>`}
       <div class="dock-body"></div>`;
     $$(".dock-tab", dock).forEach((b) => (b.onclick = (e) => {
       const c = e.target.closest("[data-close]");
@@ -219,6 +219,17 @@
     box.scrollTop = box.scrollHeight;
     box.onclick = () => inp.focus();
     inp.onkeydown = async (e) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        if (type !== "router") return;
+        // Autocompletar la última palabra, como en IOS
+        const m = inp.value.match(/^(.*?)(\S+)$/);
+        if (!m) return;
+        const opts = tabOptions(T.sess.mode, inp.value.trim().split(/\s+/));
+        if (opts.length === 1) inp.value = m[1] + opts[0] + " ";
+        else if (opts.length > 1) { appendOut(dev, `\n${promptOf(dev)}${inp.value}\n${opts.join("  ")}\n`); }
+        return;
+      }
       if (e.key === "Enter") {
         if (T.busy) return;
         const line = inp.value; inp.value = "";
@@ -267,6 +278,34 @@
     };
   }
 
+  // Autocompletado con Tab según el modo y la palabra anterior (como IOS)
+  const FIRST = {
+    user: ["enable", "exit", "ping", "show"],
+    priv: ["configure", "copy", "disable", "enable", "exit", "ping", "show", "write"],
+    config: ["do", "end", "exit", "interface", "ip", "no", "router"],
+    if: ["do", "end", "exit", "interface", "ip", "no", "shutdown"],
+    router: ["auto-summary", "do", "end", "exit", "network", "no", "version"],
+    dhcp: ["default-router", "dns-server", "do", "end", "exit", "network", "no"],
+  };
+  const NEXT = {
+    show: ["ip", "running-config"], ip: ["address", "dhcp", "interface", "protocols", "route"], interface: ["brief", "GigabitEthernet0/0", "GigabitEthernet0/1"],
+    dhcp: ["binding", "excluded-address", "pool"], router: ["rip"], configure: ["terminal"], copy: ["running-config"], "running-config": ["startup-config"],
+    no: ["auto-summary", "default-router", "dns-server", "ip", "network", "shutdown"], do: ["show", "ping", "write"],
+  };
+  function tabOptions(mode, toks) {
+    let prev = null;
+    for (let k = 0; k < toks.length; k++) {
+      let list = k === 0 ? FIRST[mode] : NEXT[prev] || [];
+      if (k > 0 && prev === "ip" && mode === "if") list = ["address"];
+      if (k > 0 && prev === "ip" && toks[0].toLowerCase().startsWith("sh")) list = ["dhcp", "interface", "protocols", "route"];
+      if (k > 0 && prev === "ip" && ["config", "router", "dhcp"].includes(mode)) list = ["dhcp", "route"];
+      const c = list.filter((w) => w.toLowerCase().startsWith(toks[k].toLowerCase()));
+      if (k === toks.length - 1) return c;
+      prev = c.length === 1 ? c[0] : list.find((w) => w.toLowerCase() === toks[k].toLowerCase()) || null;
+      if (!prev) return [];
+    }
+    return [];
+  }
   const PC_HELP = `Comandos disponibles en esta simulación:
   ipconfig            Configuración IP básica
   ipconfig /all       Configuración completa (MAC, DHCP, DNS)
@@ -414,7 +453,7 @@
     if (!S.completed.includes(idx)) {
       S.completed.push(idx); S.keywords.push(t.keyword);
       if (!S.errorsByRoom[t.id]) addScore(C.BONUS_CLEAN);
-      save(); updateHUD();
+      save(); updateHUD(); scheduleRank(true);
     }
     renderPhases(); Snd.ok(); confetti(40);
     showDone(idx, !S.errorsByRoom[t.id]);
@@ -506,27 +545,27 @@
     app.innerHTML = `<section class="intro"><div class="intro-card card">
       <span class="eyebrow">PLANIFICACIÓN Y ADMINISTRACIÓN DE REDES · 1º ASIR · UD2</span>
       <h1>CÓDIGO <span class="hl">ROJO</span><br>EN LA RED</h1>
-      <p class="lead">Lunes, 8:02. En <b>CITED Net</b> no deja de sonar el teléfono: hay sedes desconectadas, equipos que no navegan y una intranet que no abre. Sois el equipo de soporte. Tenéis <b>5 tickets</b> y una regla: <b>nada de cambiar cosas al azar</b>.</p>
+      <p class="lead">Lunes, 8:02. En <b>CITED Net</b> no deja de sonar el teléfono: hay sedes desconectadas, equipos que no navegan y una intranet que no abre. Eres el técnico de guardia del departamento de soporte. Tienes <b>5 tickets</b> y una regla: <b>nada de cambiar cosas al azar</b>.</p>
       <div class="mission">
         <div><b>Cómo se juega</b><ul><li>Abre las consolas de PC y routers desde el mapa</li><li>Diagnostica con los comandos de clase</li><li>Corrige escribiendo la configuración</li><li>Verifica y documenta cada incidencia</li></ul></div>
         <div><b>Cada ticket sigue el método</b><ul><li>Observar → Comprobar</li><li>Localizar → Corregir</li><li>Verificar → Documentar</li><li>Las salidas son <b>simuladas</b> pero coherentes</li></ul></div>
       </div>
-      <div class="rules"><span>🏆 Gana el equipo con más puntos</span><span>🎯 ${C.START_SCORE} puntos</span><span>✗ Parte erróneo −${C.PENALTY_WRONG}</span><span>💡 Pista −${C.PENALTY_HINT}</span><span>★ Ticket limpio +${C.BONUS_CLEAN}</span></div>
-      <p class="small muted">Cada equipo recibe fallos y direcciones distintos. Al acabar la clase pulsad 💾 para guardar la partida.</p>
-      <form class="start" id="startForm"><label><span>Nombre del equipo</span><input id="teamName" maxlength="30" autocomplete="off" placeholder="p. ej. Los del ping"></label><button class="btn big" type="submit">ENTRAR AL CENTRO DE SOPORTE</button></form>
-      <div class="load-row">¿Venís de otra clase? ${loadButton()}</div>
+      <div class="rules"><span>🏆 Ranking por puntos</span><span>🎯 ${C.START_SCORE} puntos</span><span>✗ Parte erróneo −${C.PENALTY_WRONG}</span><span>💡 Pista −${C.PENALTY_HINT}</span><span>★ Ticket limpio +${C.BONUS_CLEAN}</span></div>
+      <p class="small muted">Es una actividad <b>individual</b>: cada alumno recibe fallos y direcciones distintos. Al acabar la clase pulsa 💾 para guardar la partida. Al terminar descargarás tu informe en PDF para subirlo al campus.</p>
+      <form class="start" id="startForm"><label><span>Nombre y apellidos</span><input id="teamName" maxlength="60" autocomplete="name" placeholder="p. ej. Laura García Pérez"></label><button class="btn big" type="submit">ENTRAR AL CENTRO DE SOPORTE</button></form>
+      <div class="load-row">¿Vienes de otra clase? ${loadButton()}</div>
     </div></section>`;
     bindLoad(app);
     $("#startForm").onsubmit = async (e) => {
       e.preventDefault();
       const team = $("#teamName").value.trim(); if (!team) return $("#teamName").focus();
-      S = newState(team); save(); boot();
+      S = newState(team); save(); scheduleRank(true); boot();
     };
   }
   function renderResume(saved) {
     $("#topbar").hidden = true;
     app.innerHTML = `<section class="intro"><div class="intro-card card narrow"><h2>¿CONTINUAR CON LOS TICKETS?</h2>
-      <div class="resume-grid"><div><span>EQUIPO</span><b>${esc(saved.team)}</b></div><div><span>CÓDIGO</span><b>${saved.groupCode}</b></div><div><span>PUNTOS</span><b>${saved.score}</b></div><div><span>TICKETS</span><b>${saved.completed.length}/5</b></div></div>
+      <div class="resume-grid"><div><span>ALUMNO/A</span><b>${esc(saved.team)}</b></div><div><span>CÓDIGO</span><b>${saved.groupCode}</b></div><div><span>PUNTOS</span><b>${saved.score}</b></div><div><span>TICKETS</span><b>${saved.completed.length}/5</b></div></div>
       <div class="row-actions"><button class="btn big" id="cont">CONTINUAR</button><button class="btn ghost big" id="reset">REINICIAR</button></div><div class="load-row">${loadButton()}</div></div></section>`;
     bindLoad(app);
     $("#cont").onclick = () => { S = saved; boot(); };
@@ -558,12 +597,13 @@
   }
   function finish() {
     if (!S.finished) { S.finished = true; S.endTime = Date.now(); save(); }
+    scheduleRank(true);
     renderFinal();
   }
   function reportText() {
     const L = [];
     L.push("HOJA DE RESULTADOS · CÓDIGO ROJO EN LA RED (1º ASIR · PAR · UD2)");
-    L.push(`Equipo: ${S.team} · Código: ${S.groupCode} · Fecha: ${new Date(S.endTime || Date.now()).toLocaleString("es-ES")}`);
+    L.push(`Alumno/a: ${S.team} · Código: ${S.groupCode} · Fecha: ${new Date(S.endTime || Date.now()).toLocaleString("es-ES")}`);
     L.push(`Puntos: ${S.score} · Pistas: ${S.hintsUsed} · Partes erróneos: ${S.totalErrors}`);
     L.push("Las evidencias proceden de una simulación de la red de clase.\n");
     TK.forEach((t, i) => {
@@ -590,11 +630,128 @@
       <div class="stats"><div><span>TICKETS</span><b>${S.completed.length}/5</b></div><div><span>PUNTOS</span><b>${S.score}</b></div><div><span>PISTAS</span><b>${S.hintsUsed}</b></div><div><span>ERRORES</span><b>${S.totalErrors}</b></div></div>
       <div class="tbl-wrap"><table class="doc-table summary-table"><tr><th>#</th><th>Incidencia</th><th>Tipo</th><th>Causa</th><th>Corrección</th></tr>
       ${TK.map((t, i) => { const P = S.parts[t.id] || {}; return `<tr><td>${i + 1}</td><td>${t.title}</td><td>${CN.CATS[t.answer.cat]}</td><td>${esc((P.report || {}).causeText || "")}</td><td><code>${esc((P.changes || []).slice(-2).join(" · "))}</code></td></tr>`; }).join("")}</table></div>
-      <div class="row-actions"><button class="btn" id="dlReport" type="button">⬇️ Descargar hoja de resultados</button></div>
-      <div class="finish-code"><span>CÓDIGO DE FINALIZACIÓN · entrégalo al profesor junto con la hoja de resultados</span>${cmdBox(code, "Equipo " + esc(S.team) + " · " + S.groupCode)}</div>
+      <div class="pdf-box"><div><b>📄 Tu informe en PDF</b><p class="small">Incluye tus datos, los 5 tickets (síntoma, pruebas, diagnóstico, corrección y verificación) y un código de verificación. <b>Descárgalo y súbelo a la tarea del campus.</b></p></div><button class="btn big" id="dlPdf" type="button">⬇️ Descargar PDF</button></div>
+      <p class="rank-status" id="rankStatus">${rankMsg()}</p>
+      <div class="finish-code"><span>CÓDIGO DE VERIFICACIÓN · también aparece en el PDF</span>${cmdBox(code, esc(S.team) + " · " + S.groupCode)}</div>
+      <p class="small muted"><button class="linkish" id="dlTxt" type="button">Descargar también en texto (.txt)</button></p>
     </div></section>`;
-    $("#dlReport").onclick = () => download(`hoja_resultados_${S.groupCode}.txt`, reportText());
+    $("#dlPdf").onclick = () => downloadPDF(code);
+    $("#dlTxt").onclick = () => download(`CodigoRojo_${fileName()}.txt`, reportText());
+    document.addEventListener("click", (e) => { if (e.target && e.target.id === "rankRetry") { S.rankStatus = ""; $("#rankStatus").innerHTML = rankMsg(); scheduleRank(true); } });
     confetti(80); Snd.ok();
+  }
+  const fileName = () => String(S.team || "alumno").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "") || "alumno";
+  function loadJsPDF() {
+    if (window.jspdf) return Promise.resolve(window.jspdf);
+    return new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      s.onload = () => res(window.jspdf); s.onerror = () => rej(new Error("jspdf"));
+      document.head.appendChild(s);
+    });
+  }
+  // jsPDF con fuentes estándar solo admite Latin-1: sustituimos símbolos
+  const pdfSafe = (t) => String(t == null ? "" : t).replace(/[→⇒]/g, "->").replace(/[✓✔]/g, "OK").replace(/[✗✘]/g, "X").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[—–]/g, "-").replace(/·/g, "·").replace(/…/g, "...").replace(/[^\x00-\xFF]/g, "");
+  async function downloadPDF(code) {
+    let lib;
+    try { lib = await loadJsPDF(); } catch (e) { toast("No se pudo cargar el generador de PDF. Descarga el .txt", "bad"); return; }
+    const doc = new lib.jsPDF({ unit: "mm", format: "a4" });
+    const W = 210, M = 16, CW = W - 2 * M;
+    const NAVY = [16, 28, 58], LIME = [169, 219, 46], LLIME = [234, 248, 201], GRAY = [107, 116, 136], RED = [217, 68, 68];
+    let y = 0;
+    const footer = () => {
+      const n = doc.getNumberOfPages();
+      for (let i = 1; i <= n; i++) {
+        doc.setPage(i);
+        doc.setDrawColor(...NAVY); doc.setLineWidth(0.4); doc.line(M, 284, W - M, 284);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
+        doc.text(pdfSafe(`Código de verificación: ${code}`), M, 289);
+        doc.text(`Página ${i} de ${n}`, W - M, 289, { align: "right" });
+      }
+    };
+    const need = (h) => { if (y + h > 278) { doc.addPage(); y = 18; } };
+    const para = (t, { size = 9.5, bold = false, color = NAVY, font = "helvetica", indent = 0, gap = 1.2 } = {}) => {
+      doc.setFont(font, bold ? "bold" : "normal"); doc.setFontSize(size); doc.setTextColor(...color);
+      const lines = doc.splitTextToSize(pdfSafe(t), CW - indent);
+      const lh = size * 0.42;
+      for (const ln of lines) { need(lh); doc.text(ln, M + indent, y); y += lh; }
+      y += gap;
+    };
+    const label = (k, v) => { need(6); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(...NAVY); doc.text(pdfSafe(k), M, y); const w = doc.getTextWidth(pdfSafe(k)) + 2; doc.setFont("helvetica", "normal"); const lines = doc.splitTextToSize(pdfSafe(v), CW - w); doc.text(lines[0] || "", M + w, y); y += 4.6; for (const ln of lines.slice(1)) { need(4.6); doc.text(ln, M + w, y); y += 4.6; } y += 0.6; };
+
+    // Cabecera
+    doc.setFillColor(...NAVY); doc.rect(0, 0, W, 34, "F");
+    doc.setFillColor(...LIME); doc.rect(0, 34, W, 2.2, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...LIME);
+    doc.text("PLANIFICACIÓN Y ADMINISTRACIÓN DE REDES · 1º ASIR · UD2", M, 11);
+    doc.setFontSize(22); doc.setTextColor(255, 255, 255); doc.text("CÓDIGO ROJO EN LA RED", M, 22);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(207, 214, 230);
+    doc.text("Informe de diagnóstico y resolución de incidencias · CITED", M, 29);
+    y = 46;
+
+    // Datos del alumno
+    doc.setFillColor(...LLIME); doc.setDrawColor(...NAVY); doc.setLineWidth(0.6); doc.roundedRect(M, y - 6, CW, 30, 3, 3, "FD");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...NAVY); doc.text(pdfSafe(S.team), M + 5, y + 1);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text(pdfSafe(`Código de partida: ${S.groupCode}   ·   Finalizado: ${new Date(S.endTime || Date.now()).toLocaleString("es-ES")}`), M + 5, y + 7);
+    const stats = [["PUNTOS", S.score], ["TICKETS", `${S.completed.length}/5`], ["PISTAS", S.hintsUsed], ["PARTES ERRÓNEOS", S.totalErrors]];
+    stats.forEach(([k, v], i) => {
+      const x = M + 5 + i * 44;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(...GRAY); doc.text(k, x, y + 14);
+      doc.setFontSize(14); doc.setTextColor(...NAVY); doc.text(String(v), x, y + 21);
+    });
+    y += 32;
+
+    // Resumen
+    para("RESUMEN DE INCIDENCIAS", { size: 11, bold: true, gap: 2 });
+    const cols = [10, 50, 34, 24, CW - 118];
+    const head = ["#", "Incidencia", "Tipo", "Dispositivo", "Causa"];
+    const row = (cells, bold, fill) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(8.5);
+      const wrapped = cells.map((c, i) => doc.splitTextToSize(pdfSafe(c), cols[i] - 3));
+      const h = Math.max(...wrapped.map((w) => w.length)) * 3.8 + 2.6;
+      need(h);
+      if (fill) { doc.setFillColor(...fill); doc.rect(M, y - 4, CW, h, "F"); }
+      let x = M;
+      wrapped.forEach((w, i) => { doc.setTextColor(...(fill === NAVY ? [255, 255, 255] : NAVY)); doc.text(w, x + 1.5, y); x += cols[i]; });
+      y += h; doc.setDrawColor(228, 232, 237); doc.setLineWidth(0.2); doc.line(M, y - 4, M + CW, y - 4);
+    };
+    row(head, true, NAVY);
+    TK.forEach((t, i) => { const r = (S.parts[t.id] || {}).report || {}; row([String(i + 1), t.title, CN.CATS[r.cat] || "-", r.device || "-", r.causeText || "-"], false, i % 2 ? [247, 248, 250] : null); });
+    y += 4;
+
+    // Detalle por ticket
+    TK.forEach((t, i) => {
+      const P = S.parts[t.id] || {}, r = P.report || {};
+      need(22);
+      doc.setFillColor(...NAVY); doc.roundedRect(M, y - 5, CW, 9, 2, 2, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...LIME);
+      doc.text(pdfSafe(`TICKET ${i + 1} · ${t.title.toUpperCase()}`), M + 4, y + 1);
+      y += 10;
+      label("1. Síntoma: ", t.quote);
+      need(6); para("2. Pruebas realizadas:", { bold: true, gap: 0.6 });
+      const log = (P.log || []).slice(0, 18);
+      if (!log.length) para("-", { indent: 4 });
+      log.forEach((l) => para(`[${l.dev}] ${l.cmd}${l.ok === true ? "   -> correcto" : l.ok === false ? "   -> falla" : ""}`, { font: "courier", size: 8.3, indent: 4, gap: 0.3, color: [42, 54, 88] }));
+      if ((P.log || []).length > 18) para(`(+${P.log.length - 18} comandos más)`, { size: 8, indent: 4, color: GRAY });
+      y += 1;
+      label("3. Diagnóstico: ", `${CN.CATS[r.cat] || "-"} · dispositivo ${r.device || "-"} · ${r.causeText || "-"}`);
+      label("   Evidencia clave: ", r.cmd || "-");
+      label("   Justificación: ", r.why || "-");
+      need(6); para("4. Corrección aplicada:", { bold: true, gap: 0.6 });
+      (P.changes || []).slice(-10).forEach((c) => para(c, { font: "courier", size: 8.3, indent: 4, gap: 0.3, color: [42, 54, 88] }));
+      if (!(P.changes || []).length) para("-", { indent: 4 });
+      y += 1;
+      label("5. Verificación: ", P.verifyText || "-");
+      y += 4;
+    });
+    need(20);
+    doc.setDrawColor(...NAVY); doc.setLineWidth(0.4); doc.setFillColor(247, 248, 250); doc.roundedRect(M, y - 4, CW, 16, 2, 2, "FD");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.3); doc.setTextColor(...GRAY);
+    doc.text(doc.splitTextToSize(pdfSafe("Las evidencias proceden de una simulación de la red de clase (estilo Cisco Packet Tracer). El profesor puede comprobar la autenticidad de este informe con el código de verificación en el panel del profesor."), CW - 8), M + 4, y + 1);
+    footer();
+    doc.save(`CodigoRojo_${fileName()}.pdf`);
+    toast("PDF descargado. Súbelo a la tarea del campus.", "ok");
   }
   function confetti(n) {
     const wrap = document.createElement("div"); wrap.className = "confetti";
@@ -607,7 +764,14 @@
   function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
   function clear() { try { localStorage.removeItem(STORE); } catch (e) {} }
   function newState(team) { return { v: 1, groupCode: CN.generateGroupCode(), team, current: 0, score: C.START_SCORE, hintsUsed: 0, hintsByRoom: {}, errorsByRoom: {}, totalErrors: 0, completed: [], keywords: [], parts: {}, startTime: Date.now(), endTime: null, finished: false, briefed: false, muted: false }; }
-  function addScore(d) { S.score += d; const el = $("#hudScore"); el.textContent = S.score; el.parentElement.classList.remove("bump-up", "bump-down"); void el.offsetWidth; el.parentElement.classList.add(d >= 0 ? "bump-up" : "bump-down"); }
+  let rankTimer = null;
+  function scheduleRank(now) {
+    if (!C.RANKING_URL || !S) return;
+    clearTimeout(rankTimer);
+    rankTimer = setTimeout(async () => { S.rankStatus = await CN.sendRank(S); save(); const el = $("#rankStatus"); if (el) el.innerHTML = rankMsg(); }, now ? 0 : 1500);
+  }
+  const rankMsg = () => !C.RANKING_URL ? "" : S.rankStatus === "ok" ? "✓ Resultado enviado al ranking" : S.rankStatus === "error" ? "⚠ No se pudo enviar al ranking (revisa la conexión) <button class='btn ghost' id='rankRetry' type='button'>Reintentar</button>" : "Enviando al ranking…";
+  function addScore(d) { scheduleRank(); S.score += d; const el = $("#hudScore"); el.textContent = S.score; el.parentElement.classList.remove("bump-up", "bump-down"); void el.offsetWidth; el.parentElement.classList.add(d >= 0 ? "bump-up" : "bump-down"); }
   function updateHUD() {
     $("#topbar").hidden = false;
     $("#hudTeam").textContent = S.team; $("#hudGroup").textContent = S.groupCode; $("#hudScore").textContent = S.score;

@@ -6,7 +6,8 @@
   "use strict";
   const CONFIG = {
     SECRET: "CODIGO-ROJO|1ASIR|PAR|UD2|v1", // cámbialo cada curso
-    TEACHER_PIN: "1ASIR",
+    TEACHER_PIN: "1ASIR",           // solo para el panel si NO hay ranking automático
+    RANKING_URL: "",                // URL de la aplicación web de Apps Script (ver README)
     PENALTY_WRONG: 25,
     PENALTY_HINT: 50,
     BONUS_CLEAN: 50,
@@ -287,7 +288,7 @@
   function b64u(str) { let bin = ""; enc.encode(str).forEach((b) => (bin += String.fromCharCode(b))); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
   function unb64u(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0))); }
   async function makeFinishCode(res) {
-    const team = String(res.team || "").replace(/[|]/g, "/").slice(0, 40);
+    const team = String(res.team || "").replace(/[|]/g, "/").slice(0, 60);
     const payload = [res.group, team, res.elapsed, res.score, res.hints, res.errors, res.end].join("|");
     return `CR.${b64u(payload)}.${(await sha256(CONFIG.SECRET + "#FIN#" + payload)).slice(0, 8).toUpperCase()}`;
   }
@@ -301,11 +302,31 @@
       return { valid: ok, group, team, elapsed: +elapsed, score: +score, hints: +hints, errors: +errors, end: +end };
     } catch (e) { return null; }
   }
+  /* ---------- Ranking automático (Apps Script) ---------- */
+  async function rankPayload(S) {
+    const d = { code: S.groupCode, name: String(S.team || "").slice(0, 60), score: S.score, tickets: S.completed.length, hints: S.hintsUsed, errors: S.totalErrors, finished: !!S.finished, start: S.startTime };
+    const payload = [d.code, d.name, d.score, d.tickets, d.hints, d.errors, d.finished ? 1 : 0, d.start].join("|");
+    d.chk = (await sha256(CONFIG.SECRET + "#RANK#" + payload)).slice(0, 16);
+    return d;
+  }
+  async function sendRank(S) {
+    if (!CONFIG.RANKING_URL) return "off";
+    const body = JSON.stringify(await rankPayload(S));
+    try {
+      await fetch(CONFIG.RANKING_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body });
+      return "ok";
+    } catch (e) { return "error"; }
+  }
+  async function readRank(pin) {
+    const r = await fetch(CONFIG.RANKING_URL + "?pin=" + encodeURIComponent(pin) + "&t=" + Date.now());
+    return r.json();
+  }
+
   async function makeSave(state) { return JSON.stringify({ app: "codigorojo", state, chk: await sha256(CONFIG.SECRET + "#SAVE#" + JSON.stringify(state)) }); }
   async function readSave(text) {
     try { const o = JSON.parse(text); if (o.app !== "codigorojo" || !o.state) return null; if ((await sha256(CONFIG.SECRET + "#SAVE#" + JSON.stringify(o.state))) !== o.chk) return { tampered: true }; return { state: o.state }; } catch (e) { return null; }
   }
   const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
 
-  g.CN = { CONFIG, LANS, ROUTERS, SRV_IP, CATS, CMDS, rng, sha256, generateGroupCode, deriveGroup, tickets, baseline, lanOfHost, hostsOf, makeFinishCode, parseFinishCode, makeSave, readSave, fmtTime };
+  g.CN = { CONFIG, LANS, ROUTERS, SRV_IP, CATS, CMDS, rng, sha256, generateGroupCode, deriveGroup, tickets, baseline, lanOfHost, hostsOf, makeFinishCode, parseFinishCode, makeSave, readSave, fmtTime, sendRank, readRank, rankPayload };
 })(typeof window !== "undefined" ? window : globalThis);

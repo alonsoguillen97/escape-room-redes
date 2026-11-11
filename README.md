@@ -40,3 +40,13 @@ Botón 💾 para descargar la partida y «Cargar partida guardada» en la siguie
 
 ## Prueba
 `js/net.js` y `js/core.js` funcionan también en Node: se probaron 300 equipos × 5 tickets (1500 escenarios). Todos empiezan rotos y se arreglan con los comandos IOS correctos.
+
+## Actividad individual, ranking automático y PDF
+- Cada alumno entra con **nombre y apellidos**.
+- **Ranking automático**: el juego envía la puntuación a una Hoja de cálculo de Google (Apps Script) al empezar, al cerrar cada ticket y al terminar. El panel del profesor (pestaña *Ranking en directo*) se refresca cada 15 s, muestra el mejor intento de cada alumno y permite exportar a CSV.
+  1. Crea una Hoja de cálculo de Google → *Extensiones → Apps Script* → pega `apps-script/Codigo.gs`.
+  2. Cambia `const PIN = "CAMBIA-ESTE-PIN";` por tu PIN (no se publica en la web).
+  3. *Implementar → Nueva implementación → Aplicación web* · Ejecutar como **Yo** · Acceso **Cualquier usuario**.
+  4. Copia la URL `/exec` en `RANKING_URL` de `js/core.js` y publica.
+- **Informe PDF**: al terminar, el alumno descarga `CodigoRojo_Nombre_Apellidos.pdf` (datos, resumen, detalle de los 5 tickets y código de verificación) para subirlo al campus. En el panel, pestaña *Comprobar PDF*, se valida ese código.
+- Consola de router: abreviaturas como en Packet Tracer (`en`, `conf t`, `config t`, `int g0/0`, `no shut`, `sh ip int br`, `sh run`, `wr`…), **Tab** autocompleta según el modo y `?` muestra la ayuda.
