@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Código Rojo · Profesor</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tabs .btn[aria-selected=false] { background: var(--white); }
+    .panel { padding: 26px; }
+    textarea { font: 14px var(--mono); width: 100%; min-height: 120px; border: 3px solid var(--navy); border-radius: 14px; padding: 12px; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+    th { text-align: left; font-size: .72rem; letter-spacing: .12em; color: var(--gray-2); padding: 0 12px; }
+    td { background: var(--bg); border-top: 2.5px solid var(--navy); border-bottom: 2.5px solid var(--navy); padding: 10px 12px; font-weight: 700; }
+    td:first-child { border-left: 2.5px solid var(--navy); border-radius: 12px 0 0 12px; }
+    td:last-child { border-right: 2.5px solid var(--navy); border-radius: 0 12px 12px 0; }
+    tr.invalid td { background: var(--danger-light); }
+    .podium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: end; margin: 10px 0 26px; }
+    .pod { text-align: center; }
+    .pod .bar { border: 3px solid var(--navy); border-radius: 14px 14px 0 0; box-shadow: var(--shadow-sm); display: grid; place-items: center; font-size: 2.4rem; font-weight: 800; }
+    .pod.p1 .bar { height: 170px; background: var(--lime); }
+    .pod.p2 .bar { height: 120px; background: var(--lime-light); }
+    .pod.p3 .bar { height: 90px; background: var(--white); }
+    .pod b { display: block; font-size: 1.2rem; margin-top: 4px; }
+    .pod span { font-family: var(--mono); }
+    .sol { display: grid; gap: 10px; }
+    .sol div { border: 2.5px solid var(--navy); border-radius: 12px; padding: 10px 14px; background: var(--bg); }
+    .sol b { display: block; font-size: .78rem; letter-spacing: .1em; }
+    .sol code { word-break: break-all; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+    .gate { max-width: 420px; margin: 12vh auto; padding: 30px; text-align: center; }
+  </style>
+</head>
+<body>
+  <main id="t"></main>
+  <div id="modal" class="modal" hidden></div>
+  <script src="js/net.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/profesor.js"></script>
+</body>
+</html>

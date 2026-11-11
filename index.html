@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Código Rojo en la Red</title>
+  <meta name="description" content="Escape room de diagnóstico de redes · Planificación y Administración de Redes · 1º ASIR · UD2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/redes.css">
+</head>
+<body>
+  <header class="topbar" id="topbar" hidden>
+    <div class="topbar-row">
+      <div class="brand">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="#101C3A"/><path d="M12 20h16M20 12v16M14 14l12 12M26 14L14 26" stroke="#A9DB2E" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <span>CÓDIGO <b>ROJO</b> EN LA RED</span>
+      </div>
+      <div class="hud">
+        <div class="hud-item team"><span class="hud-label">EQUIPO</span><span class="hud-value" id="hudTeam">—</span></div>
+        <div class="hud-item"><span class="hud-label">CÓDIGO</span><span class="hud-value mono" id="hudGroup">----</span></div>
+        <div class="hud-item"><span class="hud-label">PUNTOS</span><span class="hud-value" id="hudScore">1000</span></div>
+        <button class="hud-item mute" id="docBtn" type="button" title="Documentación de la red" aria-label="Documentación de la red">🗺️</button>
+        <button class="hud-item mute" id="helpBtn" type="button" title="Chuleta de comandos" aria-label="Chuleta de comandos">📘</button>
+        <button class="hud-item mute" id="saveBtn" type="button" title="Guardar partida" aria-label="Guardar partida en un archivo">💾</button>
+        <button class="hud-item mute" id="muteBtn" type="button" aria-label="Activar o silenciar sonido">🔊</button>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-meta"><span id="hudStage">TICKET 1 DE 5</span><span id="hudPct">0%</span></div>
+      <div class="progress" role="progressbar" aria-label="Progreso"><div class="progress-fill" id="progressFill"></div></div>
+      <ol class="stage-map" id="stageMap"></ol>
+    </div>
+  </header>
+
+  <main id="app"></main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="modal" class="modal" hidden></div>
+
+  <script src="js/net.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
