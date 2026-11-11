@@ -13,10 +13,13 @@
 const PIN = "CAMBIA-ESTE-PIN";
 const SECRET = "CODIGO-ROJO|1ASIR|PAR|UD2|v1"; // igual que CONFIG.SECRET en js/core.js
 const SHEET = "Resultados";
+// Si el script NO se creó desde la hoja (Extensiones → Apps Script), pon aquí el ID de la hoja
+// (la parte de la URL entre /d/ y /edit). Si se creó desde la hoja, déjalo vacío.
+const SHEET_ID = "";
 const HEAD = ["Código", "Alumno/a", "Puntos", "Tickets", "Pistas", "Partes erróneos", "Terminado", "Inicio", "Última actualización", "Firma válida"];
 
 function sheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(SHEET);
   if (!sh) {
     sh = ss.insertSheet(SHEET);

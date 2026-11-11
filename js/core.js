@@ -7,7 +7,7 @@
   const CONFIG = {
     SECRET: "CODIGO-ROJO|1ASIR|PAR|UD2|v1", // cámbialo cada curso
     TEACHER_PIN: "1ASIR",           // solo para el panel si NO hay ranking automático
-    RANKING_URL: "",                // URL de la aplicación web de Apps Script (ver README)
+    RANKING_URL: "https://script.google.com/macros/s/AKfycbxYAyEkhlNKzGRbpikk5GCFhFhSRllazCFFHllmgltnBquFuww4j0NBv3_UHSBsB6BP/exec",                // URL de la aplicación web de Apps Script (ver README)
     PENALTY_WRONG: 25,
     PENALTY_HINT: 50,
     BONUS_CLEAN: 50,
