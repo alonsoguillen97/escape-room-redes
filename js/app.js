@@ -480,14 +480,14 @@
   function fail(msg) {
     const id = CUR.t.id;
     S.errorsByRoom[id] = (S.errorsByRoom[id] || 0) + 1; S.totalErrors++;
-    addScore(-C.PENALTY_WRONG); save(); Snd.bad(); toast(`${msg} · −${C.PENALTY_WRONG}`, "bad");
+    addScore(-1); save(); Snd.bad(); toast(`${msg} · −${C.POINTS.WRONG} puntos`, "bad");
     document.body.classList.remove("alarm"); void document.body.offsetWidth; document.body.classList.add("alarm");
   }
   function completeTicket() {
     const idx = CUR.idx, t = CUR.t;
     if (!S.completed.includes(idx)) {
       S.completed.push(idx); S.keywords.push(t.keyword);
-      if (!S.errorsByRoom[t.id]) addScore(C.BONUS_CLEAN);
+      addScore(1);
       save(); updateHUD(); scheduleRank(true);
     }
     renderPhases(); Snd.ok(); confetti(40);
@@ -496,7 +496,7 @@
   function showDone(idx, bonus) {
     const t = TK[idx], last = idx === TK.length - 1;
     const ov = document.createElement("div"); ov.className = "done-ov";
-    ov.innerHTML = `<div class="done-card card pop"><div class="done-badge">✓ TICKET ${idx + 1} CERRADO</div><h2>${t.title}</h2><p>${t.lesson}</p>${bonus ? `<p class="bonus">+${C.BONUS_CLEAN} puntos · ticket sin errores</p>` : ""}<div class="keyword"><span>CATEGORÍA</span><strong>${CN.CATS[t.answer.cat].toUpperCase()}</strong></div><button class="btn big" type="button">${last ? "VER INFORME FINAL →" : "SIGUIENTE TICKET →"}</button></div>`;
+    ov.innerHTML = `<div class="done-card card pop"><div class="done-badge">✓ TICKET ${idx + 1} CERRADO</div><h2>${t.title}</h2><p>${t.lesson}</p><p class="bonus">+${C.POINTS.TICKET} puntos por cerrar el ticket${bonus ? ` · +${C.POINTS.CLEAN} por hacerlo sin errores` : ""}</p><div class="keyword"><span>CATEGORÍA</span><strong>${CN.CATS[t.answer.cat].toUpperCase()}</strong></div><button class="btn big" type="button">${last ? "VER INFORME FINAL →" : "SIGUIENTE TICKET →"}</button></div>`;
     document.body.appendChild(ov);
     $("button", ov).focus();
     $("button", ov).onclick = () => { ov.remove(); last ? finish() : renderTicket(idx + 1); };
@@ -521,7 +521,7 @@
             <p class="tk-aff"><b>Equipos afectados:</b> ${t.affected.map((a) => `<button type="button" class="dev-chip" data-open="${a}">${a}</button>`).join(" ")}</p></div>
           <div class="card radio"><div class="radio-head"><span class="radio-led"></span>MÉTODO</div><p class="method">1 <b>Observa</b> el síntoma · 2 <b>Comprueba</b> con comandos · 3 <b>Localiza</b> el dispositivo · 4 <b>Corrige</b> lo mínimo · 5 <b>Verifica</b> repitiendo la prueba · 6 <b>Documenta</b>.</p></div>
           <button class="btn big" id="closeBtn" type="button" disabled>📝 Cerrar incidencia</button>
-          <div class="hint-zone"><button class="btn ghost hint-btn" type="button">💡 Pista <small>−${C.PENALTY_HINT}</small></button><div class="hints"></div></div>
+          <div class="hint-zone"><button class="btn ghost hint-btn" type="button">💡 Pista <small>−${C.POINTS.HINT}</small></button><div class="hints"></div></div>
         </aside>
         <div class="workbench">
           <div class="card map-card">${mapSVG()}<p class="scene-tip">Haz clic en un equipo para abrir su consola. Las salidas de los comandos son <b>simuladas</b> a partir del estado de la red.</p></div>
@@ -545,8 +545,8 @@
   async function askHint() {
     const t = CUR.t, n = S.hintsByRoom[t.id] || 0;
     if (n >= t.hints.length) return;
-    if (!(await modal({ title: "¿Pedir una pista?", body: `<p>Cuesta <b>${C.PENALTY_HINT} puntos</b>. Orienta, no da la solución.</p>`, ok: "Pedir pista", cancel: "Mejor no" }))) return;
-    S.hintsByRoom[t.id] = n + 1; S.hintsUsed++; addScore(-C.PENALTY_HINT); save(); renderHints();
+    if (!(await modal({ title: "¿Pedir una pista?", body: `<p>Cuesta <b>${C.POINTS.HINT} puntos</b>. Orienta, no da la solución.</p>`, ok: "Pedir pista", cancel: "Mejor no" }))) return;
+    S.hintsByRoom[t.id] = n + 1; S.hintsUsed++; addScore(-1); save(); renderHints();
   }
 
   function showDocs() {
@@ -585,7 +585,7 @@
         <div><b>Cómo se juega</b><ul><li>Abre las consolas de PC y routers desde el mapa</li><li>Diagnostica con los comandos de clase</li><li>Corrige escribiendo la configuración</li><li>Verifica y documenta cada incidencia</li></ul></div>
         <div><b>Cada ticket sigue el método</b><ul><li>Observar → Comprobar</li><li>Localizar → Corregir</li><li>Verificar → Documentar</li><li>Las salidas son <b>simuladas</b> pero coherentes</li></ul></div>
       </div>
-      <div class="rules"><span>🏆 Ranking por puntos</span><span>🎯 ${C.START_SCORE} puntos</span><span>✗ Parte erróneo −${C.PENALTY_WRONG}</span><span>💡 Pista −${C.PENALTY_HINT}</span><span>★ Ticket limpio +${C.BONUS_CLEAN}</span></div>
+      <div class="rules"><span>🎫 Ticket cerrado +${C.POINTS.TICKET}</span><span>★ Sin errores +${C.POINTS.CLEAN}</span><span>✗ Parte erróneo −${C.POINTS.WRONG}</span><span>💡 Pista −${C.POINTS.HINT}</span><span>⚡ Rapidez hasta +${C.POINTS.SPEED}</span></div>
       <p class="small muted">Es una actividad <b>individual</b>: cada alumno recibe fallos y direcciones distintos. Al acabar la clase pulsa 💾 para guardar la partida. Al terminar descargarás tu informe en PDF para subirlo al campus.</p>
       <form class="start" id="startForm"><label><span>Nombre y apellidos</span><input id="teamName" maxlength="60" autocomplete="name" placeholder="p. ej. Laura García Pérez"></label><button class="btn big" type="submit">ENTRAR AL CENTRO DE SOPORTE</button></form>
       <div class="load-row">¿Vienes de otra clase? ${loadButton()}</div>
@@ -600,7 +600,7 @@
   function renderResume(saved) {
     $("#topbar").hidden = true;
     app.innerHTML = `<section class="intro"><div class="intro-card card narrow"><h2>¿CONTINUAR CON LOS TICKETS?</h2>
-      <div class="resume-grid"><div><span>ALUMNO/A</span><b>${esc(saved.team)}</b></div><div><span>CÓDIGO</span><b>${saved.groupCode}</b></div><div><span>PUNTOS</span><b>${saved.score}</b></div><div><span>TICKETS</span><b>${saved.completed.length}/5</b></div></div>
+      <div class="resume-grid"><div><span>ALUMNO/A</span><b>${esc(saved.team)}</b></div><div><span>CÓDIGO</span><b>${saved.groupCode}</b></div><div><span>PUNTOS</span><b>${CN.score(saved)}</b></div><div><span>TICKETS</span><b>${saved.completed.length}/5</b></div></div>
       <div class="row-actions"><button class="btn big" id="cont">CONTINUAR</button><button class="btn ghost big" id="reset">REINICIAR</button></div><div class="load-row">${loadButton()}</div></div></section>`;
     bindLoad(app);
     $("#cont").onclick = () => { S = saved; boot(); };
@@ -625,13 +625,31 @@
   async function boot() {
     D = CN.deriveGroup(S.groupCode);
     TK = CN.tickets(D);
+    if (S.activeMs == null) {           // partidas empezadas antes de medir el tiempo activo
+      const wall = (S.endTime || Date.now()) - S.startTime;
+      S.activeMs = wall < 4 * 3600000 ? wall : 60 * 60000;
+    }
+    S.score = CN.score(S); save(); scheduleRank(true);
     updateHUD();
     if (S.finished) return renderFinal();
     if (!S.briefed) return renderBriefing();
     renderTicket(Math.min(S.current, TK.length - 1));
   }
+  let lastAct = Date.now();
+  ["pointerdown", "keydown", "wheel", "touchstart"].forEach((ev) => document.addEventListener(ev, () => (lastAct = Date.now()), { passive: true }));
+  setInterval(() => {
+    if (!S || !TK || S.finished || document.visibilityState !== "visible") return;
+    if (Date.now() - lastAct > C.SPEED.IDLE_MIN * 60000) return;
+    S.activeMs = (S.activeMs || 0) + 5000; save();
+  }, 5000);
+  const fmtMin = (m) => `${Math.floor(m / 60) ? Math.floor(m / 60) + " h " : ""}${Math.round(m % 60)} min`;
   function finish() {
-    if (!S.finished) { S.finished = true; S.endTime = Date.now(); save(); }
+    if (!S.finished) {
+      S.finished = true; S.endTime = Date.now();
+      S.score = CN.score(S); save();
+      const bonus = Math.round(C.POINTS.SPEED * CN.speedFactor(S));
+      setTimeout(() => toast(bonus ? `⚡ +${bonus} puntos por rapidez (${fmtMin(CN.activeMin(S))} de trabajo)` : `Tiempo de trabajo: ${fmtMin(CN.activeMin(S))}`, "ok"), 600);
+    }
     scheduleRank(true);
     renderFinal();
   }
@@ -640,6 +658,7 @@
     L.push("HOJA DE RESULTADOS · CÓDIGO ROJO EN LA RED (1º ASIR · PAR · UD2)");
     L.push(`Alumno/a: ${S.team} · Código: ${S.groupCode} · Fecha: ${new Date(S.endTime || Date.now()).toLocaleString("es-ES")}`);
     L.push(`Nota: ${CN.fmtGrade(CN.grade(S, TK).total)} / 10 · Puntos: ${S.score} · Pistas: ${S.hintsUsed} · Partes erróneos: ${S.totalErrors}`);
+    L.push(`Inicio: ${new Date(S.startTime).toLocaleString("es-ES")} · Fin: ${S.endTime ? new Date(S.endTime).toLocaleString("es-ES") : "-"} · Tiempo de trabajo: ${fmtMin(CN.activeMin(S))}`);
     L.push("Las evidencias proceden de una simulación de la red de clase.\n");
     TK.forEach((t, i) => {
       const P = S.parts[t.id] || {}, r = P.report || {};
@@ -658,7 +677,7 @@
   }
   async function reportCode(partial) {
     const end = partial ? Date.now() : S.endTime;
-    const elapsed = Math.round(((end || Date.now()) - S.startTime) / 1000);
+    const elapsed = Math.round(CN.activeMin(S) * 60);
     const g = CN.grade(S, TK).total;
     return CN.makeFinishCode({ group: S.groupCode, team: S.team, elapsed, score: S.score, hints: S.hintsUsed, errors: S.totalErrors, end, tickets: S.completed.length, partial, grade: g });
   }
@@ -668,7 +687,7 @@
     const G = CN.grade(S, TK);
     app.innerHTML = `<section class="final"><div class="card final-card">
       <span class="eyebrow">TODOS LOS TICKETS CERRADOS</span><h1>RED <span class="hl">RESTABLECIDA</span></h1>
-      <div class="stats"><div><span>TICKETS</span><b>${S.completed.length}/5</b></div><div><span>PUNTOS</span><b>${S.score}</b></div><div><span>PISTAS</span><b>${S.hintsUsed}</b></div><div><span>ERRORES</span><b>${S.totalErrors}</b></div></div>
+      <div class="stats"><div><span>TICKETS</span><b>${S.completed.length}/5</b></div><div><span>PUNTOS</span><b>${S.score}</b></div><div><span>TIEMPO</span><b>${Math.round(CN.activeMin(S))}′</b></div><div><span>PISTAS</span><b>${S.hintsUsed}</b></div><div><span>ERRORES</span><b>${S.totalErrors}</b></div></div>
       <div class="tbl-wrap"><table class="doc-table summary-table"><tr><th>#</th><th>Incidencia</th><th>Tipo</th><th>Causa</th><th>Corrección</th></tr>
       ${TK.map((t, i) => { const P = S.parts[t.id] || {}; return `<tr><td>${i + 1}</td><td>${t.title}</td><td>${CN.CATS[t.answer.cat]}</td><td>${esc((P.report || {}).causeText || "")}</td><td><code>${esc((P.changes || []).slice(-2).join(" · "))}</code></td></tr>`; }).join("")}</table></div>
       <div class="pdf-box"><div><b>📄 Tu informe en PDF</b><p class="small">Incluye tus datos, tu <b>nota</b>, los 5 tickets (síntoma, pruebas, diagnóstico, corrección y verificación) y un código de verificación. <b>Descárgalo y súbelo a la tarea del campus.</b></p></div><button class="btn big" id="dlPdf" type="button">⬇️ Descargar PDF</button></div>
@@ -741,15 +760,16 @@
     doc.setFillColor(...LLIME); doc.setDrawColor(...NAVY); doc.setLineWidth(0.6); doc.roundedRect(M, y - 6, CW, 30, 3, 3, "FD");
     doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...NAVY); doc.text(pdfSafe(S.team), M + 5, y + 1);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text(pdfSafe(`Código de partida: ${S.groupCode}   ·   ${partial ? "Generado" : "Finalizado"}: ${new Date(partial ? Date.now() : S.endTime || Date.now()).toLocaleString("es-ES")}`), M + 5, y + 7);
+    const hora = (t) => new Date(t).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    doc.text(pdfSafe(`Código: ${S.groupCode}  ·  Inicio: ${hora(S.startTime)}  ·  ${partial ? "Generado" : "Fin"}: ${hora(partial ? Date.now() : S.endTime || Date.now())}  ·  Trabajo: ${fmtMin(CN.activeMin(S))}`), M + 5, y + 7);
     // Nota destacada
     doc.setFillColor(...NAVY); doc.roundedRect(W - M - 38, y - 3, 34, 24, 3, 3, "F");
     doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(...LIME); doc.text(partial ? "NOTA PROVISIONAL" : "NOTA", W - M - 21, y + 2.5, { align: "center" });
     doc.setFontSize(20); doc.setTextColor(255, 255, 255); doc.text(CN.fmtGrade(G.total), W - M - 21, y + 13, { align: "center" });
     doc.setFontSize(8); doc.setTextColor(207, 214, 230); doc.text("sobre 10", W - M - 21, y + 18, { align: "center" });
-    const stats = [["PUNTOS", S.score], ["TICKETS", `${S.completed.length}/5`], ["PISTAS", S.hintsUsed], ["PARTES ERRÓNEOS", S.totalErrors]];
+    const stats = [["PUNTOS", S.score], ["TICKETS", `${S.completed.length}/5`], ["TIEMPO", `${Math.round(CN.activeMin(S))} min`], ["PISTAS", S.hintsUsed], ["ERRORES", S.totalErrors]];
     stats.forEach(([k, v], i) => {
-      const x = M + 5 + i * 34;
+      const x = M + 5 + i * 27;
       doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(...GRAY); doc.text(k, x, y + 14);
       doc.setFontSize(14); doc.setTextColor(...NAVY); doc.text(String(v), x, y + 21);
     });
@@ -787,12 +807,13 @@
     };
     row2(["#", "Ticket", "Estado", "Pistas", "Partes err.", "Puntos"], true, NAVY);
     G.per.forEach((x, i) => row2([String(i + 1), x.title, x.estado, String(x.hints), String(x.wrong), `${CN.fmtGrade(x.pts)} / ${CN.fmtGrade(C.GRADE.TICKET)}`], false, i % 2 ? [247, 248, 250] : null));
+    row2(["⚡", "Rapidez", G.speed.applies ? `${G.speed.minutes} min de trabajo` : "Solo al terminar", "-", "-", `${CN.fmtGrade(G.speed.pts)} / ${CN.fmtGrade(C.GRADE.SPEED)}`], false, [234, 248, 201]);
     doc.setFillColor(...LLIME); doc.rect(M, y - 4, CW, 7.5, "F");
     doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...NAVY);
     doc.text(partial ? "NOTA PROVISIONAL" : "NOTA FINAL", M + 1.5, y + 1);
     doc.text(`${CN.fmtGrade(G.total)} / 10`, M + CW - 2, y + 1, { align: "right" });
     y += 9;
-    para(`Criterio: cada ticket vale ${CN.fmtGrade(C.GRADE.TICKET)} puntos. Ticket cerrado (corregido, verificado y documentado): ${CN.fmtGrade(C.GRADE.TICKET)} menos ${CN.fmtGrade(C.GRADE.HINT)} por pista y ${CN.fmtGrade(C.GRADE.WRONG)} por parte erróneo (mínimo ${CN.fmtGrade(C.GRADE.MIN_CLOSED)}). Corregido y verificado sin parte: ${CN.fmtGrade(C.GRADE.VERIFIED_ONLY)}. Sin resolver: 0.`, { size: 7.8, color: GRAY, gap: 4 });
+    para(`Criterio: tickets hasta ${CN.fmtGrade(C.GRADE.TICKET * 5)} puntos (${CN.fmtGrade(C.GRADE.TICKET)} por ticket cerrado, menos ${CN.fmtGrade(C.GRADE.HINT)} por pista y ${CN.fmtGrade(C.GRADE.WRONG)} por parte erróneo, mínimo ${CN.fmtGrade(C.GRADE.MIN_CLOSED)}; ${CN.fmtGrade(C.GRADE.VERIFIED_ONLY)} si está corregido sin parte). Rapidez hasta ${CN.fmtGrade(C.GRADE.SPEED)} puntos si se terminan los 5 tickets: ${C.SPEED.FAST_MIN} min de trabajo o menos = máximo; ${C.SPEED.SLOW_MIN} min o más = 0. Solo cuenta el tiempo con la actividad abierta y en uso.`, { size: 7.8, color: GRAY, gap: 4 });
 
     // Detalle por ticket
     TK.forEach((t, i) => {
@@ -838,7 +859,7 @@
   function load() { try { return JSON.parse(localStorage.getItem(STORE)); } catch (e) { return null; } }
   function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
   function clear() { try { localStorage.removeItem(STORE); } catch (e) {} }
-  function newState(team) { return { v: 1, groupCode: CN.generateGroupCode(), team, current: 0, score: C.START_SCORE, hintsUsed: 0, hintsByRoom: {}, errorsByRoom: {}, totalErrors: 0, completed: [], keywords: [], parts: {}, startTime: Date.now(), endTime: null, finished: false, briefed: false, muted: false }; }
+  function newState(team) { return { v: 1, groupCode: CN.generateGroupCode(), team, current: 0, score: 0, activeMs: 0, hintsUsed: 0, hintsByRoom: {}, errorsByRoom: {}, totalErrors: 0, completed: [], keywords: [], parts: {}, startTime: Date.now(), endTime: null, finished: false, briefed: false, muted: false }; }
   let rankTimer = null;
   function scheduleRank(now) {
     if (!C.RANKING_URL || !S) return;
@@ -846,7 +867,7 @@
     rankTimer = setTimeout(async () => { S.rankStatus = await CN.sendRank(S); save(); const el = $("#rankStatus"); if (el) el.innerHTML = rankMsg(); }, now ? 0 : 1500);
   }
   const rankMsg = () => !C.RANKING_URL ? "" : S.rankStatus === "ok" ? "✓ Resultado enviado al ranking" : S.rankStatus === "error" ? "⚠ No se pudo enviar al ranking (revisa la conexión) <button class='btn ghost' id='rankRetry' type='button'>Reintentar</button>" : "Enviando al ranking…";
-  function addScore(d) { scheduleRank(); S.score += d; const el = $("#hudScore"); el.textContent = S.score; el.parentElement.classList.remove("bump-up", "bump-down"); void el.offsetWidth; el.parentElement.classList.add(d >= 0 ? "bump-up" : "bump-down"); }
+  function addScore(d) { scheduleRank(); S.score = CN.score(S); const el = $("#hudScore"); el.textContent = S.score; el.parentElement.classList.remove("bump-up", "bump-down"); void el.offsetWidth; el.parentElement.classList.add(d >= 0 ? "bump-up" : "bump-down"); }
   function setHdr() { const tb = $("#topbar"); if (tb && !tb.hidden) document.documentElement.style.setProperty("--hdr", tb.offsetHeight + "px"); }
   window.addEventListener("resize", () => { setHdr(); const d = $(".dock", app); if (d && !d.hidden) placeDock(d); });
   function updateHUD() {

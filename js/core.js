@@ -13,7 +13,12 @@
     BONUS_CLEAN: 50,
     START_SCORE: 1000,
     // Nota sobre 10 que aparece en el informe PDF (5 tickets × 2 puntos)
-    GRADE: { TICKET: 2, HINT: 0.25, WRONG: 0.25, MIN_CLOSED: 1, VERIFIED_ONLY: 1 },
+    // Nota: 8 puntos por tickets (1,6 cada uno) + 2 por rapidez (solo si se terminan los 5)
+    GRADE: { TICKET: 1.6, HINT: 0.2, WRONG: 0.2, MIN_CLOSED: 0.8, VERIFIED_ONLY: 0.8, SPEED: 2 },
+    // Rapidez según minutos de trabajo activo: <= FAST_MIN → máximo; >= SLOW_MIN → 0; lineal entre medias
+    SPEED: { FAST_MIN: 45, SLOW_MIN: 105, IDLE_MIN: 5 },
+    // Puntos del juego (se ganan): por ticket cerrado, extra si es limpio, penalizaciones y rapidez
+    POINTS: { TICKET: 200, CLEAN: 50, WRONG: 25, HINT: 50, SPEED: 250 },
   };
   const enc = new TextEncoder();
   const toHex = (u8) => Array.from(u8, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -24,7 +29,13 @@
   function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function rng(seed) { const r = mulberry32(xmur3(seed)()); return { next: r, int: (a, b) => a + Math.floor(r() * (b - a + 1)), pick: (arr) => arr[Math.floor(r() * arr.length)], shuffle: (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; } }; }
   const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  function generateGroupCode() { const b = crypto.getRandomValues(new Uint8Array(4)); return Array.from(b, (x) => ALPH[x % ALPH.length]).join(""); }
+  function generateGroupCode() {
+    for (;;) {
+      const b = crypto.getRandomValues(new Uint8Array(4));
+      const c = Array.from(b, (x) => ALPH[x % ALPH.length]).join("");
+      if (!/^\d*E\d+$|^\d+$/.test(c)) return c;
+    }
+  }
 
   /* ---------- Red de clase ---------- */
   const LANS = {
@@ -305,7 +316,27 @@
       return { valid: ok, group, team, elapsed: +elapsed, score: +score, hints: +hints, errors: +errors, end: +end, tickets: tickets == null ? 5 : +tickets, partial: kind === "P", grade: grade ? +grade : null };
     } catch (e) { return null; }
   }
-  /* ---------- Nota sobre 10 ---------- */
+  /* ---------- Tiempo, puntos y nota ---------- */
+  function activeMin(S) {
+    if (S.activeMs != null) return S.activeMs / 60000;
+    return Math.max(0, ((S.endTime || Date.now()) - S.startTime) / 60000);
+  }
+  function speedFactor(S) {
+    if (!S.finished || (S.completed || []).length < 5) return 0;
+    const { FAST_MIN, SLOW_MIN } = CONFIG.SPEED, m = activeMin(S);
+    return Math.max(0, Math.min(1, (SLOW_MIN - m) / (SLOW_MIN - FAST_MIN)));
+  }
+  function score(S) {
+    const P = CONFIG.POINTS;
+    let pts = 0;
+    for (const id of ["t1", "t2", "t3", "t4", "t5"]) {
+      if (!((S.parts || {})[id] || {}).report) continue;
+      pts += P.TICKET + (((S.errorsByRoom || {})[id] || 0) === 0 ? P.CLEAN : 0);
+    }
+    pts -= P.WRONG * (S.totalErrors || 0) + P.HINT * (S.hintsUsed || 0);
+    pts += Math.round(P.SPEED * speedFactor(S));
+    return pts;
+  }
   function grade(S, TK) {
     const G = CONFIG.GRADE;
     const per = TK.map((t) => {
@@ -316,8 +347,9 @@
       else if (P.verified) { pts = G.VERIFIED_ONLY; estado = "Corregido, sin parte"; }
       return { id: t.id, title: t.title, estado, hints, wrong, pts: Math.round(pts * 100) / 100 };
     });
-    const total = Math.round(per.reduce((a, x) => a + x.pts, 0) * 100) / 100;
-    return { total: Math.min(10, total), per };
+    const sp = Math.round(G.SPEED * speedFactor(S) * 100) / 100;
+    const total = Math.round((per.reduce((a, x) => a + x.pts, 0) + sp) * 100) / 100;
+    return { total: Math.min(10, total), per, speed: { pts: sp, minutes: Math.round(activeMin(S)), applies: !!S.finished && (S.completed || []).length >= 5 } };
   }
   const fmtGrade = (n) => String(Math.round(n * 100) / 100).replace(".", ",");
 
@@ -347,5 +379,5 @@
   }
   const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
 
-  g.CN = { CONFIG, LANS, ROUTERS, SRV_IP, CATS, CMDS, rng, sha256, generateGroupCode, deriveGroup, tickets, baseline, lanOfHost, hostsOf, makeFinishCode, parseFinishCode, makeSave, readSave, fmtTime, sendRank, readRank, rankPayload, grade, fmtGrade };
+  g.CN = { CONFIG, LANS, ROUTERS, SRV_IP, CATS, CMDS, rng, sha256, generateGroupCode, deriveGroup, tickets, baseline, lanOfHost, hostsOf, makeFinishCode, parseFinishCode, makeSave, readSave, fmtTime, sendRank, readRank, rankPayload, grade, fmtGrade, score, activeMin, speedFactor };
 })(typeof window !== "undefined" ? window : globalThis);

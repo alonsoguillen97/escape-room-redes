@@ -56,3 +56,8 @@ Botón 💾 para descargar la partida y «Cargar partida guardada» en la siguie
 - Botón **📄** en la cabecera: descarga el informe en cualquier momento. Antes de terminar genera un **informe PARCIAL** (banda roja, nota provisional, tickets pendientes marcados) con nombre `_PARCIAL.pdf`.
 - La nota, el número de tickets y si es parcial o final van dentro del código de verificación: en *Comprobar PDF* se ven y cualquier edición invalida el código.
 - Los títulos de los tickets y la barra de progreso son neutros (no revelan el tipo de fallo).
+
+## Puntos que se ganan, tiempo y rapidez
+- Puntos (se ganan, empiezan en 0): +200 por ticket cerrado, +50 si es sin errores, −25 por parte erróneo, −50 por pista, rapidez hasta +250 al terminar. Se recalculan siempre a partir del progreso (`CONFIG.POINTS`).
+- Se registran inicio, fin y **tiempo de trabajo activo** (solo con la web abierta y en uso; más de 5 min sin actividad no cuenta).
+- Nota: 8 puntos por tickets (1,6 cada uno, −0,2 por pista o parte erróneo, mínimo 0,8) + 2 por rapidez si se terminan los 5 (≤ 45 min = 2; ≥ 105 min = 0). Configurable en `CONFIG.GRADE` y `CONFIG.SPEED`.

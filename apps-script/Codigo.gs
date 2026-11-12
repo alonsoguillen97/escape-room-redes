@@ -51,9 +51,10 @@ function doPost(e) {
     const d = JSON.parse(e.postData.contents);
     if (!/^[A-Z0-9]{4}$/.test(String(d.code))) return out_({ ok: false });
     const sh = sheet_();
+    sh.getRange("A:A").setNumberFormat("@"); // códigos como 7E28 no deben convertirse en números
     const vals = sh.getDataRange().getValues();
     let row = -1;
-    for (let i = 1; i < vals.length; i++) if (vals[i][0] === d.code) { row = i + 1; break; }
+    for (let i = 1; i < vals.length; i++) if (String(vals[i][0]).toUpperCase() === d.code) { row = i + 1; break; }
     const rec = [d.code, String(d.name || "").slice(0, 60), Number(d.score) || 0, Number(d.tickets) || 0, Number(d.hints) || 0, Number(d.errors) || 0,
       d.finished ? "Sí" : "No", new Date(Number(d.start) || Date.now()), new Date(), verify_(d) ? "Sí" : "NO"];
     if (row > 0) sh.getRange(row, 1, 1, rec.length).setValues([rec]);
@@ -67,7 +68,7 @@ function doPost(e) {
 function doGet(e) {
   if (!e || !e.parameter || e.parameter.pin !== PIN) return out_({ error: "pin" });
   const rows = sheet_().getDataRange().getValues().slice(1).map(function (r) {
-    return { code: r[0], name: r[1], score: r[2], tickets: r[3], hints: r[4], errors: r[5], finished: r[6] === "Sí",
+    return { code: String(r[0]), name: r[1], score: r[2], tickets: r[3], hints: r[4], errors: r[5], finished: r[6] === "Sí",
       start: r[7] instanceof Date ? r[7].getTime() : r[7], updated: r[8] instanceof Date ? r[8].getTime() : r[8], verified: r[9] === "Sí" };
   });
   return out_({ rows: rows });
