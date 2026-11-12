@@ -668,7 +668,6 @@
     const G = CN.grade(S, TK);
     app.innerHTML = `<section class="final"><div class="card final-card">
       <span class="eyebrow">TODOS LOS TICKETS CERRADOS</span><h1>RED <span class="hl">RESTABLECIDA</span></h1>
-      <div class="grade-big"><span>NOTA</span><b>${CN.fmtGrade(G.total)}</b><em>/ 10</em></div>
       <div class="stats"><div><span>TICKETS</span><b>${S.completed.length}/5</b></div><div><span>PUNTOS</span><b>${S.score}</b></div><div><span>PISTAS</span><b>${S.hintsUsed}</b></div><div><span>ERRORES</span><b>${S.totalErrors}</b></div></div>
       <div class="tbl-wrap"><table class="doc-table summary-table"><tr><th>#</th><th>Incidencia</th><th>Tipo</th><th>Causa</th><th>Corrección</th></tr>
       ${TK.map((t, i) => { const P = S.parts[t.id] || {}; return `<tr><td>${i + 1}</td><td>${t.title}</td><td>${CN.CATS[t.answer.cat]}</td><td>${esc((P.report || {}).causeText || "")}</td><td><code>${esc((P.changes || []).slice(-2).join(" · "))}</code></td></tr>`; }).join("")}</table></div>
@@ -868,8 +867,7 @@
   $("#reportBtn").onclick = async () => {
     if (!S || !TK) return;
     if (S.finished) return downloadPDF(await reportCode(false), false);
-    const g = CN.grade(S, TK).total;
-    const ok = await modal({ title: "¿Descargar informe parcial?", body: `<p>Aún no has cerrado los 5 tickets (llevas <b>${S.completed.length}/5</b>). Se generará un <b>informe PARCIAL</b> con lo que llevas hecho y una <b>nota provisional de ${CN.fmtGrade(g)} / 10</b>.</p><p class="small muted">Puedes seguir jugando después y descargar otro informe más adelante. Sube al campus el último.</p>`, ok: "Descargar informe parcial", cancel: "Cancelar" });
+    const ok = await modal({ title: "¿Descargar informe parcial?", body: `<p>Aún no has cerrado los 5 tickets (llevas <b>${S.completed.length}/5</b>). Se generará un <b>informe PARCIAL</b> con lo que llevas hecho hasta ahora.</p><p class="small muted">Puedes seguir jugando después y descargar otro informe más adelante. Sube al campus el último.</p>`, ok: "Descargar informe parcial", cancel: "Cancelar" });
     if (ok) downloadPDF(await reportCode(true), true);
   };
   $("#saveBtn").onclick = async () => { if (!S) return; download(`partida_${S.groupCode}.codigorojo`, await CN.makeSave(S), "application/json"); toast("Partida guardada en Descargas", "info"); };
