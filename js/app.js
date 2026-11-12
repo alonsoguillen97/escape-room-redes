@@ -190,23 +190,58 @@
     if (DEVTYPE(dev) === "switch") return;
     if (!CUR.tabs.includes(dev)) CUR.tabs.push(dev);
     CUR.active = dev; Snd.blip();
+    DOCK.min = false; saveDock();
     renderDock(); paintMap();
-    setTimeout(() => $(".dock input.term-input")?.focus(), 30);
+    setTimeout(() => $(".dock input.term-input")?.focus({ preventScroll: true }), 30);
+  }
+  /* Ventana flotante de consolas: posición, tamaño y estado guardados por navegador */
+  const DOCK = (() => { try { return JSON.parse(localStorage.getItem("codigorojo.dock")) || {}; } catch (e) { return {}; } })();
+  function saveDock() { try { localStorage.setItem("codigorojo.dock", JSON.stringify(DOCK)); } catch (e) {} }
+  function placeDock(dock) {
+    const small = window.innerWidth < 700;
+    dock.classList.toggle("min", !!DOCK.min);
+    if (small) { dock.style.cssText = ""; return; }
+    const w = Math.min(DOCK.w || 780, window.innerWidth - 24), h = Math.min(DOCK.h || 470, window.innerHeight - 90);
+    const left = DOCK.left == null ? window.innerWidth - w - 24 : Math.max(8, Math.min(DOCK.left, window.innerWidth - 120));
+    const top = DOCK.top == null ? window.innerHeight - h - 20 : Math.max(8, Math.min(DOCK.top, window.innerHeight - 50));
+    dock.style.left = left + "px"; dock.style.top = (DOCK.min ? Math.max(8, window.innerHeight - 60) : top) + "px";
+    dock.style.width = w + "px"; dock.style.height = DOCK.min ? "" : h + "px";
+  }
+  function bindDockWindow(dock) {
+    const bar = $(".dock-tabs", dock);
+    bar.onpointerdown = (e) => {
+      if (e.target.closest("button, i") || window.innerWidth < 700) return;
+      e.preventDefault();
+      const r = dock.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+      dock.classList.add("dragging");
+      const move = (ev) => { dock.style.left = Math.max(0, Math.min(ev.clientX - dx, window.innerWidth - 80)) + "px"; dock.style.top = Math.max(0, Math.min(ev.clientY - dy, window.innerHeight - 40)) + "px"; };
+      const up = () => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); dock.classList.remove("dragging"); if (!DOCK.min) { DOCK.left = parseInt(dock.style.left); DOCK.top = parseInt(dock.style.top); saveDock(); } };
+      document.addEventListener("pointermove", move); document.addEventListener("pointerup", up);
+    };
+    // guardar tamaño al redimensionar desde la esquina
+    if (window.ResizeObserver && !dock._ro) {
+      dock._ro = new ResizeObserver(() => { if (DOCK.min || window.innerWidth < 700 || dock.hidden) return; const w = dock.offsetWidth, h = dock.offsetHeight; if (w > 200 && h > 150) { DOCK.w = w; DOCK.h = h; saveDock(); } });
+      dock._ro.observe(dock);
+    }
+    $("[data-dmin]", dock).onclick = () => { DOCK.min = !DOCK.min; saveDock(); renderDock(); };
+    $("[data-dclose]", dock).onclick = () => { CUR.tabs = []; CUR.active = null; renderDock(); paintMap(); };
   }
   function renderDock() {
     const dock = $(".dock", app); if (!dock) return;
-    if (!CUR.tabs.length) { dock.innerHTML = `<div class="dock-empty">👆 Haz clic en un <b>PC</b>, el <b>servidor</b> o un <b>router</b> del mapa para abrir su consola.</div>`; return; }
+    if (!CUR.tabs.length) { dock.hidden = true; return; }
+    dock.hidden = false;
     const dev = CUR.active;
     const type = DEVTYPE(dev);
     CUR.pcView = CUR.pcView || {};
     const view = type === "router" ? "cli" : CUR.pcView[dev] || "cmd";
-    dock.innerHTML = `<div class="dock-tabs">${CUR.tabs.map((t) => `<button type="button" class="dock-tab ${t === dev ? "on" : ""}" data-tab="${t}"><span>${DEVTYPE(t) === "router" ? "⌁" : DEVTYPE(t) === "server" ? "🗄" : "🖥"}</span>${t}<i data-close="${t}" title="Cerrar">✕</i></button>`).join("")}<span class="sim-tag">SIMULACIÓN</span></div>
+    dock.innerHTML = `<div class="dock-tabs">${CUR.tabs.map((t) => `<button type="button" class="dock-tab ${t === dev ? "on" : ""}" data-tab="${t}"><span>${DEVTYPE(t) === "router" ? "⌁" : DEVTYPE(t) === "server" ? "🗄" : "🖥"}</span>${t}<i data-close="${t}" title="Cerrar">✕</i></button>`).join("")}<span class="sim-tag">SIMULACIÓN</span><span class="dock-ctl"><button type="button" data-dmin title="${DOCK.min ? "Restaurar" : "Minimizar"}" aria-label="${DOCK.min ? "Restaurar" : "Minimizar"} consola">${DOCK.min ? "▢" : "–"}</button><button type="button" data-dclose title="Cerrar consolas" aria-label="Cerrar todas las consolas">✕</button></span></div>
       ${type !== "router" ? `<div class="pc-views"><button type="button" class="${view === "cmd" ? "on" : ""}" data-view="cmd">Command Prompt</button><button type="button" class="${view === "ipcfg" ? "on" : ""}" data-view="ipcfg">IP Configuration</button></div>` : `<div class="pc-views"><button type="button" class="on">CLI · ${dev}</button><span class="cli-tip">Abreviaturas como en Packet Tracer: <code>en</code> · <code>conf t</code> · <code>int g0/0</code> · <code>no shut</code> · <code>sh ip int br</code> · <kbd>Tab</kbd> completa · <kbd>↑</kbd> repite · <code>?</code> ayuda</span></div>`}
       <div class="dock-body"></div>`;
+    placeDock(dock); bindDockWindow(dock);
     $$(".dock-tab", dock).forEach((b) => (b.onclick = (e) => {
       const c = e.target.closest("[data-close]");
       if (c) { CUR.tabs = CUR.tabs.filter((x) => x !== c.dataset.close); if (CUR.active === c.dataset.close) CUR.active = CUR.tabs[CUR.tabs.length - 1]; }
-      else CUR.active = b.dataset.tab;
+      else { CUR.active = b.dataset.tab; if (DOCK.min) { DOCK.min = false; saveDock(); } }
       renderDock(); paintMap();
     }));
     $$("[data-view]", dock).forEach((b) => (b.onclick = () => { CUR.pcView[dev] = b.dataset.view; renderDock(); }));
@@ -490,9 +525,9 @@
         </aside>
         <div class="workbench">
           <div class="card map-card">${mapSVG()}<p class="scene-tip">Haz clic en un equipo para abrir su consola. Las salidas de los comandos son <b>simuladas</b> a partir del estado de la red.</p></div>
-          <div class="card dock"></div>
+
         </div>
-      </div></section>`;
+      </div></section><div class="card dock float" hidden role="dialog" aria-label="Consolas de los equipos"></div>`;
     $$(".topo .dev", app).forEach((g) => { g.onclick = () => openDevice(g.dataset.dev); g.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDevice(g.dataset.dev); } }; });
     $$("[data-open]", app).forEach((b) => (b.onclick = () => openDevice(b.dataset.open)));
     $("#closeBtn", app).onclick = openReport;
@@ -577,7 +612,7 @@
         <div class="card ticket-card"><p>Es la red que montasteis en clase: <b>tres routers</b> unidos por la red común <code>10.0.0.0/24</code>, una LAN por router, <b>DHCP</b> en cada router y <b>RIPv2</b>. En Producción está el servidor <b>SRV-DNS</b>.</p><p>Haz clic en cualquier equipo para probar su consola. Prueba, por ejemplo, <code>ipconfig /all</code> en un PC o <code>show ip route</code> en un router.</p><p class="small muted">Aquí todo funciona. En cada ticket habrá un fallo distinto.</p></div>
         <button class="btn ghost" type="button" id="docs2">🗺️ Documentación de la red</button><button class="btn ghost" type="button" id="help2">📘 Chuleta de comandos</button>
         <button class="btn big" type="button" id="go">ABRIR EL PRIMER TICKET →</button>
-      </aside><div class="workbench"><div class="card map-card">${mapSVG()}</div><div class="card dock"></div></div></div></section>`;
+      </aside><div class="workbench"><div class="card map-card">${mapSVG()}</div></div></div></section><div class="card dock float" hidden role="dialog" aria-label="Consolas de los equipos"></div>`;
     const base = CN.baseline(D); Object.values(base.hosts).forEach(() => 0);
     for (const [hn, h] of Object.entries(base.hosts)) if (h.dhcp) NET.dhcpRequest(base, hn);
     S.parts.brief = S.parts.brief || {};
@@ -813,8 +848,11 @@
   }
   const rankMsg = () => !C.RANKING_URL ? "" : S.rankStatus === "ok" ? "✓ Resultado enviado al ranking" : S.rankStatus === "error" ? "⚠ No se pudo enviar al ranking (revisa la conexión) <button class='btn ghost' id='rankRetry' type='button'>Reintentar</button>" : "Enviando al ranking…";
   function addScore(d) { scheduleRank(); S.score += d; const el = $("#hudScore"); el.textContent = S.score; el.parentElement.classList.remove("bump-up", "bump-down"); void el.offsetWidth; el.parentElement.classList.add(d >= 0 ? "bump-up" : "bump-down"); }
+  function setHdr() { const tb = $("#topbar"); if (tb && !tb.hidden) document.documentElement.style.setProperty("--hdr", tb.offsetHeight + "px"); }
+  window.addEventListener("resize", () => { setHdr(); const d = $(".dock", app); if (d && !d.hidden) placeDock(d); });
   function updateHUD() {
     $("#topbar").hidden = false;
+    requestAnimationFrame(setHdr);
     $("#hudTeam").textContent = S.team; $("#hudGroup").textContent = S.groupCode; $("#hudScore").textContent = S.score;
     $("#muteBtn").textContent = S.muted ? "🔇" : "🔊";
     const done = S.completed.length, total = 5, cur = Math.min(S.current, total - 1);

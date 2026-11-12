@@ -119,3 +119,25 @@ main { max-width: 1320px; }
 .grade-big span { font-size: .72rem; font-weight: 800; letter-spacing: .14em; color: var(--lime); }
 .grade-big b { font: 800 2.6rem var(--mono); }
 .grade-big em { font-style: normal; font-weight: 700; opacity: .8; }
+
+/* ---------- Consola como ventana flotante ---------- */
+.dock.float { position: fixed; z-index: 30; right: 24px; bottom: 20px; width: min(780px, calc(100vw - 24px)); height: min(470px, calc(100vh - 90px));
+  min-width: 380px; min-height: 220px; resize: both; overflow: hidden; display: flex; flex-direction: column; box-shadow: 10px 10px 0 var(--navy), 0 18px 50px rgba(16,28,58,.35); animation: pop .2s cubic-bezier(.3,1.4,.5,1); }
+.dock.float[hidden] { display: none; }
+.dock.float .dock-tabs { cursor: move; user-select: none; touch-action: none; }
+.dock.float.dragging { opacity: .92; }
+.dock.float .dock-body { flex: 1; min-height: 0; }
+.dock.float .term { height: auto; flex: 1; min-height: 0; }
+.dock.float .ipcfg { overflow-y: auto; }
+.dock-ctl { display: flex; gap: 4px; margin-left: 8px; align-self: center; }
+.dock-ctl button { font: 800 .9rem var(--font); width: 28px; height: 26px; border-radius: 7px; border: 0; background: #2A3658; color: #fff; cursor: pointer; }
+.dock-ctl button:hover { background: var(--lime); color: var(--navy); }
+.dock-ctl button[data-dclose]:hover { background: var(--danger); color: #fff; }
+.dock.float.min { height: auto !important; resize: none; min-height: 0; }
+.dock.float.min .pc-views, .dock.float.min .dock-body { display: none; }
+.workbench { grid-template-columns: 1fr; }
+@media (max-width: 699px) {
+  .dock.float { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: 100% !important; height: 62vh !important; min-width: 0; resize: none; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 40px rgba(16,28,58,.35); }
+  .dock.float.min { height: auto !important; }
+}
+.term .term-input { background: transparent; border: 0; border-radius: 0; box-shadow: none; min-height: 0; padding: 0 0 0 2px; color: #fff; width: auto; }
