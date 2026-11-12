@@ -50,3 +50,9 @@ Botón 💾 para descargar la partida y «Cargar partida guardada» en la siguie
   4. Copia la URL `/exec` en `RANKING_URL` de `js/core.js` y publica.
 - **Informe PDF**: al terminar, el alumno descarga `CodigoRojo_Nombre_Apellidos.pdf` (datos, resumen, detalle de los 5 tickets y código de verificación) para subirlo al campus. En el panel, pestaña *Comprobar PDF*, se valida ese código.
 - Consola de router: abreviaturas como en Packet Tracer (`en`, `conf t`, `config t`, `int g0/0`, `no shut`, `sh ip int br`, `sh run`, `wr`…), **Tab** autocompleta según el modo y `?` muestra la ayuda.
+
+## Nota sobre 10 e informe parcial
+- El PDF incluye una **nota sobre 10** (editable en `CONFIG.GRADE` de `js/core.js`): cada ticket vale 2 puntos; ticket cerrado = 2 − 0,25 por pista − 0,25 por parte erróneo (mínimo 1); corregido y verificado sin parte = 1; sin resolver = 0.
+- Botón **📄** en la cabecera: descarga el informe en cualquier momento. Antes de terminar genera un **informe PARCIAL** (banda roja, nota provisional, tickets pendientes marcados) con nombre `_PARCIAL.pdf`.
+- La nota, el número de tickets y si es parcial o final van dentro del código de verificación: en *Comprobar PDF* se ven y cualquier edición invalida el código.
+- Los títulos de los tickets y la barra de progreso son neutros (no revelan el tipo de fallo).

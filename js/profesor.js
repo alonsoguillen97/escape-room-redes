@@ -91,13 +91,13 @@
   /* ---------- Comprobar el código de un PDF ---------- */
   function check() {
     const v = $("#view");
-    v.innerHTML = `<h2>Comprobar un informe PDF</h2><p class="muted small">Copia el <b>código de verificación</b> que aparece al pie del PDF (empieza por <code>CR.</code>) y pégalo aquí. Puedes pegar varios, uno por línea.</p>
+    v.innerHTML = `<h2>Comprobar un informe PDF</h2><p class="muted small">Copia el <b>código de verificación</b> que aparece al pie del PDF (empieza por <code>CR.</code>) y pégalo aquí. Puedes pegar varios, uno por línea. Verás si es un informe <b>final</b> o <b>parcial</b> y la <b>nota</b> que le corresponde; si alguien ha editado el PDF, el código no coincidirá.</p>
       <textarea id="codes" placeholder="CR.xxxxx.XXXXXXXX"></textarea><div class="toolbar"><button class="btn" id="go">Comprobar</button></div><div id="res"></div>`;
     $("#go").onclick = async () => {
       const lines = $("#codes").value.split(/\s+/).filter(Boolean);
       const out = [];
       for (const l of lines) { const r = await CN.parseFinishCode(l); out.push(r ? { ...r, raw: l } : { valid: false, raw: l, bad: true }); }
-      $("#res").innerHTML = `<table><thead><tr><th>Alumno/a</th><th>Código</th><th>Puntos</th><th>Pistas</th><th>Partes erróneos</th><th>Terminó</th><th>Resultado</th></tr></thead><tbody>${out.map((x) => x.bad ? `<tr class="invalid"><td colspan="6" class="mono">${esc(x.raw.slice(0, 40))}</td><td>No es un código válido</td></tr>` : `<tr class="${x.valid ? "" : "invalid"}"><td>${esc(x.team)}</td><td class="mono">${esc(x.group)}</td><td>${x.score}</td><td>${x.hints}</td><td>${x.errors}</td><td class="mono">${fmt(x.end)}</td><td>${x.valid ? "✅ Auténtico" : "❌ Manipulado"}</td></tr>`).join("")}</tbody></table>`;
+      $("#res").innerHTML = `<table><thead><tr><th>Alumno/a</th><th>Informe</th><th>Nota</th><th>Puntos</th><th>Pistas</th><th>Partes erróneos</th><th>Fecha</th><th>Resultado</th></tr></thead><tbody>${out.map((x) => x.bad ? `<tr class="invalid"><td colspan="7" class="mono">${esc(x.raw.slice(0, 40))}</td><td>No es un código válido</td></tr>` : `<tr class="${x.valid ? "" : "invalid"}"><td>${esc(x.team)}<br><span class="small muted mono">${esc(x.group)}</span></td><td>${x.partial ? `⏳ Parcial (${x.tickets}/5)` : "✅ Final"}</td><td><b>${x.grade == null ? "-" : CN.fmtGrade(x.grade) + " / 10"}</b></td><td>${x.score}</td><td>${x.hints}</td><td>${x.errors}</td><td class="mono">${fmt(x.end)}</td><td>${x.valid ? "✅ Auténtico" : "❌ Manipulado"}</td></tr>`).join("")}</tbody></table>`;
     };
   }
 

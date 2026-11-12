@@ -115,3 +115,7 @@ main { max-width: 1320px; }
 .cli-tip { margin-left: auto; align-self: center; font-size: .76rem; font-weight: 600; color: var(--gray-2); }
 .cli-tip code, .cli-tip kbd { font: 700 .74rem var(--mono); background: var(--white); border: 1.5px solid var(--navy); border-radius: 5px; padding: 0 4px; color: var(--navy); }
 @media (max-width: 900px) { .cli-tip { display: none; } }
+.grade-big { display: inline-flex; align-items: baseline; gap: 8px; background: var(--navy); color: #fff; border: 3px solid var(--navy); border-radius: 18px; padding: 8px 22px; margin: 6px 0 4px; box-shadow: var(--shadow-sm); }
+.grade-big span { font-size: .72rem; font-weight: 800; letter-spacing: .14em; color: var(--lime); }
+.grade-big b { font: 800 2.6rem var(--mono); }
+.grade-big em { font-style: normal; font-weight: 700; opacity: .8; }

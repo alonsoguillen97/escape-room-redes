@@ -604,7 +604,7 @@
     const L = [];
     L.push("HOJA DE RESULTADOS · CÓDIGO ROJO EN LA RED (1º ASIR · PAR · UD2)");
     L.push(`Alumno/a: ${S.team} · Código: ${S.groupCode} · Fecha: ${new Date(S.endTime || Date.now()).toLocaleString("es-ES")}`);
-    L.push(`Puntos: ${S.score} · Pistas: ${S.hintsUsed} · Partes erróneos: ${S.totalErrors}`);
+    L.push(`Nota: ${CN.fmtGrade(CN.grade(S, TK).total)} / 10 · Puntos: ${S.score} · Pistas: ${S.hintsUsed} · Partes erróneos: ${S.totalErrors}`);
     L.push("Las evidencias proceden de una simulación de la red de clase.\n");
     TK.forEach((t, i) => {
       const P = S.parts[t.id] || {}, r = P.report || {};
@@ -621,21 +621,28 @@
     });
     return L.join("\n") + "\n";
   }
+  async function reportCode(partial) {
+    const end = partial ? Date.now() : S.endTime;
+    const elapsed = Math.round(((end || Date.now()) - S.startTime) / 1000);
+    const g = CN.grade(S, TK).total;
+    return CN.makeFinishCode({ group: S.groupCode, team: S.team, elapsed, score: S.score, hints: S.hintsUsed, errors: S.totalErrors, end, tickets: S.completed.length, partial, grade: g });
+  }
   async function renderFinal() {
     updateHUD();
-    const elapsed = Math.round(((S.endTime || Date.now()) - S.startTime) / 1000);
-    const code = await CN.makeFinishCode({ group: S.groupCode, team: S.team, elapsed, score: S.score, hints: S.hintsUsed, errors: S.totalErrors, end: S.endTime });
+    const code = await reportCode(false);
+    const G = CN.grade(S, TK);
     app.innerHTML = `<section class="final"><div class="card final-card">
       <span class="eyebrow">TODOS LOS TICKETS CERRADOS</span><h1>RED <span class="hl">RESTABLECIDA</span></h1>
+      <div class="grade-big"><span>NOTA</span><b>${CN.fmtGrade(G.total)}</b><em>/ 10</em></div>
       <div class="stats"><div><span>TICKETS</span><b>${S.completed.length}/5</b></div><div><span>PUNTOS</span><b>${S.score}</b></div><div><span>PISTAS</span><b>${S.hintsUsed}</b></div><div><span>ERRORES</span><b>${S.totalErrors}</b></div></div>
       <div class="tbl-wrap"><table class="doc-table summary-table"><tr><th>#</th><th>Incidencia</th><th>Tipo</th><th>Causa</th><th>Corrección</th></tr>
       ${TK.map((t, i) => { const P = S.parts[t.id] || {}; return `<tr><td>${i + 1}</td><td>${t.title}</td><td>${CN.CATS[t.answer.cat]}</td><td>${esc((P.report || {}).causeText || "")}</td><td><code>${esc((P.changes || []).slice(-2).join(" · "))}</code></td></tr>`; }).join("")}</table></div>
-      <div class="pdf-box"><div><b>📄 Tu informe en PDF</b><p class="small">Incluye tus datos, los 5 tickets (síntoma, pruebas, diagnóstico, corrección y verificación) y un código de verificación. <b>Descárgalo y súbelo a la tarea del campus.</b></p></div><button class="btn big" id="dlPdf" type="button">⬇️ Descargar PDF</button></div>
+      <div class="pdf-box"><div><b>📄 Tu informe en PDF</b><p class="small">Incluye tus datos, tu <b>nota</b>, los 5 tickets (síntoma, pruebas, diagnóstico, corrección y verificación) y un código de verificación. <b>Descárgalo y súbelo a la tarea del campus.</b></p></div><button class="btn big" id="dlPdf" type="button">⬇️ Descargar PDF</button></div>
       <p class="rank-status" id="rankStatus">${rankMsg()}</p>
       <div class="finish-code"><span>CÓDIGO DE VERIFICACIÓN · también aparece en el PDF</span>${cmdBox(code, esc(S.team) + " · " + S.groupCode)}</div>
       <p class="small muted"><button class="linkish" id="dlTxt" type="button">Descargar también en texto (.txt)</button></p>
     </div></section>`;
-    $("#dlPdf").onclick = () => downloadPDF(code);
+    $("#dlPdf").onclick = () => downloadPDF(code, false);
     $("#dlTxt").onclick = () => download(`CodigoRojo_${fileName()}.txt`, reportText());
     document.addEventListener("click", (e) => { if (e.target && e.target.id === "rankRetry") { S.rankStatus = ""; $("#rankStatus").innerHTML = rankMsg(); scheduleRank(true); } });
     confetti(80); Snd.ok();
@@ -652,7 +659,8 @@
   }
   // jsPDF con fuentes estándar solo admite Latin-1: sustituimos símbolos
   const pdfSafe = (t) => String(t == null ? "" : t).replace(/[→⇒]/g, "->").replace(/[✓✔]/g, "OK").replace(/[✗✘]/g, "X").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[—–]/g, "-").replace(/·/g, "·").replace(/…/g, "...").replace(/[^\x00-\xFF]/g, "");
-  async function downloadPDF(code) {
+  async function downloadPDF(code, partial) {
+    const G = CN.grade(S, TK);
     let lib;
     try { lib = await loadJsPDF(); } catch (e) { toast("No se pudo cargar el generador de PDF. Descarga el .txt", "bad"); return; }
     const doc = new lib.jsPDF({ unit: "mm", format: "a4" });
@@ -688,15 +696,26 @@
     doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(207, 214, 230);
     doc.text("Informe de diagnóstico y resolución de incidencias · CITED", M, 29);
     y = 46;
+    if (partial) {
+      doc.setFillColor(...RED); doc.rect(0, 36.2, W, 8, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
+      doc.text(pdfSafe(`INFORME PARCIAL · ${S.completed.length}/5 tickets cerrados · nota provisional · generado el ${new Date().toLocaleString("es-ES")}`), W / 2, 41.6, { align: "center" });
+      y = 54;
+    }
 
     // Datos del alumno
     doc.setFillColor(...LLIME); doc.setDrawColor(...NAVY); doc.setLineWidth(0.6); doc.roundedRect(M, y - 6, CW, 30, 3, 3, "FD");
     doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...NAVY); doc.text(pdfSafe(S.team), M + 5, y + 1);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...GRAY);
-    doc.text(pdfSafe(`Código de partida: ${S.groupCode}   ·   Finalizado: ${new Date(S.endTime || Date.now()).toLocaleString("es-ES")}`), M + 5, y + 7);
+    doc.text(pdfSafe(`Código de partida: ${S.groupCode}   ·   ${partial ? "Generado" : "Finalizado"}: ${new Date(partial ? Date.now() : S.endTime || Date.now()).toLocaleString("es-ES")}`), M + 5, y + 7);
+    // Nota destacada
+    doc.setFillColor(...NAVY); doc.roundedRect(W - M - 38, y - 3, 34, 24, 3, 3, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(...LIME); doc.text(partial ? "NOTA PROVISIONAL" : "NOTA", W - M - 21, y + 2.5, { align: "center" });
+    doc.setFontSize(20); doc.setTextColor(255, 255, 255); doc.text(CN.fmtGrade(G.total), W - M - 21, y + 13, { align: "center" });
+    doc.setFontSize(8); doc.setTextColor(207, 214, 230); doc.text("sobre 10", W - M - 21, y + 18, { align: "center" });
     const stats = [["PUNTOS", S.score], ["TICKETS", `${S.completed.length}/5`], ["PISTAS", S.hintsUsed], ["PARTES ERRÓNEOS", S.totalErrors]];
     stats.forEach(([k, v], i) => {
-      const x = M + 5 + i * 44;
+      const x = M + 5 + i * 34;
       doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(...GRAY); doc.text(k, x, y + 14);
       doc.setFontSize(14); doc.setTextColor(...NAVY); doc.text(String(v), x, y + 21);
     });
@@ -717,8 +736,29 @@
       y += h; doc.setDrawColor(228, 232, 237); doc.setLineWidth(0.2); doc.line(M, y - 4, M + CW, y - 4);
     };
     row(head, true, NAVY);
-    TK.forEach((t, i) => { const r = (S.parts[t.id] || {}).report || {}; row([String(i + 1), t.title, CN.CATS[r.cat] || "-", r.device || "-", r.causeText || "-"], false, i % 2 ? [247, 248, 250] : null); });
+    TK.forEach((t, i) => { const r = (S.parts[t.id] || {}).report || {}; row([String(i + 1), t.title, CN.CATS[r.cat] || "-", r.device || "-", r.causeText || "Sin resolver"], false, i % 2 ? [247, 248, 250] : null); });
     y += 4;
+
+    // Calificación
+    need(60);
+    para(partial ? "CALIFICACIÓN PROVISIONAL" : "CALIFICACIÓN", { size: 11, bold: true, gap: 2 });
+    const C2 = [10, 64, 40, 18, 26, CW - 158];
+    const row2 = (cells, bold, fill) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(8.5);
+      need(7);
+      if (fill) { doc.setFillColor(...fill); doc.rect(M, y - 4, CW, 6.4, "F"); }
+      let x = M;
+      cells.forEach((c, i) => { doc.setTextColor(...(fill === NAVY ? [255, 255, 255] : NAVY)); doc.text(pdfSafe(c), x + 1.5, y); x += C2[i]; });
+      y += 6.4; doc.setDrawColor(228, 232, 237); doc.setLineWidth(0.2); doc.line(M, y - 4, M + CW, y - 4);
+    };
+    row2(["#", "Ticket", "Estado", "Pistas", "Partes err.", "Puntos"], true, NAVY);
+    G.per.forEach((x, i) => row2([String(i + 1), x.title, x.estado, String(x.hints), String(x.wrong), `${CN.fmtGrade(x.pts)} / ${CN.fmtGrade(C.GRADE.TICKET)}`], false, i % 2 ? [247, 248, 250] : null));
+    doc.setFillColor(...LLIME); doc.rect(M, y - 4, CW, 7.5, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...NAVY);
+    doc.text(partial ? "NOTA PROVISIONAL" : "NOTA FINAL", M + 1.5, y + 1);
+    doc.text(`${CN.fmtGrade(G.total)} / 10`, M + CW - 2, y + 1, { align: "right" });
+    y += 9;
+    para(`Criterio: cada ticket vale ${CN.fmtGrade(C.GRADE.TICKET)} puntos. Ticket cerrado (corregido, verificado y documentado): ${CN.fmtGrade(C.GRADE.TICKET)} menos ${CN.fmtGrade(C.GRADE.HINT)} por pista y ${CN.fmtGrade(C.GRADE.WRONG)} por parte erróneo (mínimo ${CN.fmtGrade(C.GRADE.MIN_CLOSED)}). Corregido y verificado sin parte: ${CN.fmtGrade(C.GRADE.VERIFIED_ONLY)}. Sin resolver: 0.`, { size: 7.8, color: GRAY, gap: 4 });
 
     // Detalle por ticket
     TK.forEach((t, i) => {
@@ -728,6 +768,7 @@
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...LIME);
       doc.text(pdfSafe(`TICKET ${i + 1} · ${t.title.toUpperCase()}`), M + 4, y + 1);
       y += 10;
+      if (!P.report) { need(6); para(P.verified ? "Estado: corregido y verificado, falta documentar el parte." : "Estado: SIN RESOLVER.", { bold: true, color: RED, gap: 1 }); }
       label("1. Síntoma: ", t.quote);
       need(6); para("2. Pruebas realizadas:", { bold: true, gap: 0.6 });
       const log = (P.log || []).slice(0, 18);
@@ -750,8 +791,8 @@
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.3); doc.setTextColor(...GRAY);
     doc.text(doc.splitTextToSize(pdfSafe("Las evidencias proceden de una simulación de la red de clase (estilo Cisco Packet Tracer). El profesor puede comprobar la autenticidad de este informe con el código de verificación en el panel del profesor."), CW - 8), M + 4, y + 1);
     footer();
-    doc.save(`CodigoRojo_${fileName()}.pdf`);
-    toast("PDF descargado. Súbelo a la tarea del campus.", "ok");
+    doc.save(`CodigoRojo_${fileName()}${partial ? "_PARCIAL" : ""}.pdf`);
+    toast(partial ? "Informe parcial descargado." : "PDF descargado. Súbelo a la tarea del campus.", "ok");
   }
   function confetti(n) {
     const wrap = document.createElement("div"); wrap.className = "confetti";
@@ -780,12 +821,19 @@
     $("#hudStage").textContent = S.finished ? "TODOS LOS TICKETS CERRADOS" : `TICKET ${cur + 1} DE ${total}`;
     $("#hudPct").textContent = Math.round((done / total) * 100) + "%";
     $("#progressFill").style.width = (done / total) * 100 + "%";
-    const names = ["Interfaz", "Máscara", "DHCP", "Rutas", "DNS"];
+    const names = ["Ticket 1", "Ticket 2", "Ticket 3", "Ticket 4", "Ticket 5"];
     $("#stageMap").innerHTML = names.map((n, i) => `<li class="${S.completed.includes(i) ? "done" : i === cur && !S.finished ? "current" : ""}"><span>${S.completed.includes(i) ? "✓" : i + 1}</span><em>${n}</em></li>`).join("");
   }
   $("#muteBtn").onclick = () => { if (!S) return; S.muted = !S.muted; save(); updateHUD(); };
   $("#docBtn").onclick = showDocs;
   $("#helpBtn").onclick = showHelp;
+  $("#reportBtn").onclick = async () => {
+    if (!S || !TK) return;
+    if (S.finished) return downloadPDF(await reportCode(false), false);
+    const g = CN.grade(S, TK).total;
+    const ok = await modal({ title: "¿Descargar informe parcial?", body: `<p>Aún no has cerrado los 5 tickets (llevas <b>${S.completed.length}/5</b>). Se generará un <b>informe PARCIAL</b> con lo que llevas hecho y una <b>nota provisional de ${CN.fmtGrade(g)} / 10</b>.</p><p class="small muted">Puedes seguir jugando después y descargar otro informe más adelante. Sube al campus el último.</p>`, ok: "Descargar informe parcial", cancel: "Cancelar" });
+    if (ok) downloadPDF(await reportCode(true), true);
+  };
   $("#saveBtn").onclick = async () => { if (!S) return; download(`partida_${S.groupCode}.codigorojo`, await CN.makeSave(S), "application/json"); toast("Partida guardada en Descargas", "info"); };
   function loadButton() { return `<label class="btn ghost load-btn"><input type="file" accept=".codigorojo,.json,.txt" hidden>📂 Cargar partida guardada</label>`; }
   function bindLoad(root) {

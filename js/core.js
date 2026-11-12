@@ -12,6 +12,8 @@
     PENALTY_HINT: 50,
     BONUS_CLEAN: 50,
     START_SCORE: 1000,
+    // Nota sobre 10 que aparece en el informe PDF (5 tickets × 2 puntos)
+    GRADE: { TICKET: 2, HINT: 0.25, WRONG: 0.25, MIN_CLOSED: 1, VERIFIED_ONLY: 1 },
   };
   const enc = new TextEncoder();
   const toHex = (u8) => Array.from(u8, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -124,7 +126,7 @@
     const remoteOf = (r) => ROUTERS.filter((x) => x !== r);
     return [
       {
-        id: "t1", title: "Una sede desconectada", keyword: "FÍSICO", place: "Planta de " + L1.dept,
+        id: "t1", title: "Llamada urgente de " + L1.dept, keyword: "FÍSICO", place: "Planta de " + L1.dept,
         quote: `Nadie en ${L1.dept} puede trabajar: no llegamos a ningún servidor ni a las otras sedes. Entre nosotros sí nos vemos… creo.`,
         reporter: `Usuario de ${L1.dept}`, affected: hostsOf(T1).filter((h) => h !== "SRV-DNS"),
         build() { const N = baseline(d); leaseAll(N); N.routers[T1].ifaces["GigabitEthernet0/0"].shut = true; return N; },
@@ -147,7 +149,7 @@
         solution: `${T1}: enable → configure terminal → interface GigabitEthernet0/0 → no shutdown. Verificar: ping desde ${L1.short}-1 a otra LAN.`,
       },
       {
-        id: "t2", title: "El portátil configurado a mano", keyword: "MÁSCARA", place: "Oficina de " + L2.dept,
+        id: "t2", title: "Un usuario de " + L2.dept + " se queja", keyword: "MÁSCARA", place: "Oficina de " + L2.dept,
         quote: d.t2.variant === "25"
           ? `Me han configurado el portátil (${t2target}) a mano y no llego a nada. Mis compañeros de al lado funcionan perfectamente.`
           : `Mi equipo (${t2target}) llega al router, pero no consigo abrir nada de las otras sedes. Mis compañeros sí pueden.`,
@@ -177,7 +179,7 @@
         solution: `${t2target}: IP Configuration → máscara 255.255.255.0 (o pasar a DHCP). Verificar: ping a otra LAN.`,
       },
       {
-        id: "t3", title: "El PC nuevo de " + L3.dept, keyword: "DHCP", place: "Oficina de " + L3.dept,
+        id: "t3", title: "Aviso del responsable de " + L3.dept, keyword: "DHCP", place: "Oficina de " + L3.dept,
         quote: d.t3.variant === "gw"
           ? `Hemos conectado un equipo nuevo (${t3target}). Coge IP sin problema, pero no sale de la oficina.`
           : `Hemos conectado un equipo nuevo (${t3target}) y no consigue configuración. Los equipos antiguos funcionan.`,
@@ -214,7 +216,7 @@
           : `${T3}: configure terminal → no ip dhcp excluded-address ${L3.net}.1 ${L3.net}.254 → ip dhcp excluded-address ${L3.net}.1 ${L3.net}.${d.excl[T3]}. En ${t3target}: ipconfig /renew.`,
       },
       {
-        id: "t4", title: d.t4.variant === "rip" ? "La sede invisible" : "El camino de vuelta", keyword: "RUTAS", place: "Centro de datos",
+        id: "t4", title: "Queja de coordinación", keyword: "RUTAS", place: "Coordinación",
         quote: d.t4.variant === "rip"
           ? `Desde ${LA.dept} no llegamos a los equipos de ${LZ.dept}. Y por lo visto desde otras sedes tampoco. Dentro de ${LZ.dept} todo va bien.`
           : `${LA.dept} y ${LZ.dept} no se comunican entre sí. Lo curioso es que las dos llegan sin problemas a la tercera sede.`,
@@ -248,7 +250,7 @@
           : `${Z}: configure terminal → ip route ${LA.net}.0 255.255.255.0 ${LA.transit}. Verificar: ping de ${LA.short}-1 a ${LZ.short}-1.`,
       },
       {
-        id: "t5", title: "La intranet no abre", keyword: "DNS", place: "Oficina de " + L5.dept,
+        id: "t5", title: "Usuario de " + L5.dept + " sin servicio", keyword: "DNS", place: "Oficina de " + L5.dept,
         quote: `No me abre intranet.cited.local. Pero el técnico dice que si escribe la IP del servidor (${SRV_IP}) sí responde. ¿Qué está pasando?`,
         reporter: `Usuario de ${L5.dept} (${t5target})`, affected: d.t5.variant === "pool" ? hostsOf(T5) : [t5target],
         build() {
@@ -289,7 +291,8 @@
   function unb64u(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0))); }
   async function makeFinishCode(res) {
     const team = String(res.team || "").replace(/[|]/g, "/").slice(0, 60);
-    const payload = [res.group, team, res.elapsed, res.score, res.hints, res.errors, res.end].join("|");
+    // tickets y "P" (parcial) / "F" (final) van al final para que los códigos antiguos sigan siendo válidos
+    const payload = [res.group, team, res.elapsed, res.score, res.hints, res.errors, res.end, res.tickets == null ? 5 : res.tickets, res.partial ? "P" : "F", res.grade == null ? "" : res.grade].join("|");
     return `CR.${b64u(payload)}.${(await sha256(CONFIG.SECRET + "#FIN#" + payload)).slice(0, 8).toUpperCase()}`;
   }
   async function parseFinishCode(code) {
@@ -298,10 +301,26 @@
       if (p !== "CR" || !body || !chk) return null;
       const payload = unb64u(body);
       const ok = (await sha256(CONFIG.SECRET + "#FIN#" + payload)).slice(0, 8).toUpperCase() === chk.toUpperCase();
-      const [group, team, elapsed, score, hints, errors, end] = payload.split("|");
-      return { valid: ok, group, team, elapsed: +elapsed, score: +score, hints: +hints, errors: +errors, end: +end };
+      const [group, team, elapsed, score, hints, errors, end, tickets, kind, grade] = payload.split("|");
+      return { valid: ok, group, team, elapsed: +elapsed, score: +score, hints: +hints, errors: +errors, end: +end, tickets: tickets == null ? 5 : +tickets, partial: kind === "P", grade: grade ? +grade : null };
     } catch (e) { return null; }
   }
+  /* ---------- Nota sobre 10 ---------- */
+  function grade(S, TK) {
+    const G = CONFIG.GRADE;
+    const per = TK.map((t) => {
+      const P = (S.parts || {})[t.id] || {};
+      const hints = (S.hintsByRoom || {})[t.id] || 0, wrong = (S.errorsByRoom || {})[t.id] || 0;
+      let pts = 0, estado = "Sin resolver";
+      if (P.report) { pts = Math.max(G.MIN_CLOSED, G.TICKET - G.HINT * hints - G.WRONG * wrong); estado = "Cerrado"; }
+      else if (P.verified) { pts = G.VERIFIED_ONLY; estado = "Corregido, sin parte"; }
+      return { id: t.id, title: t.title, estado, hints, wrong, pts: Math.round(pts * 100) / 100 };
+    });
+    const total = Math.round(per.reduce((a, x) => a + x.pts, 0) * 100) / 100;
+    return { total: Math.min(10, total), per };
+  }
+  const fmtGrade = (n) => String(Math.round(n * 100) / 100).replace(".", ",");
+
   /* ---------- Ranking automático (Apps Script) ---------- */
   async function rankPayload(S) {
     const d = { code: S.groupCode, name: String(S.team || "").slice(0, 60), score: S.score, tickets: S.completed.length, hints: S.hintsUsed, errors: S.totalErrors, finished: !!S.finished, start: S.startTime };
@@ -328,5 +347,5 @@
   }
   const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
 
-  g.CN = { CONFIG, LANS, ROUTERS, SRV_IP, CATS, CMDS, rng, sha256, generateGroupCode, deriveGroup, tickets, baseline, lanOfHost, hostsOf, makeFinishCode, parseFinishCode, makeSave, readSave, fmtTime, sendRank, readRank, rankPayload };
+  g.CN = { CONFIG, LANS, ROUTERS, SRV_IP, CATS, CMDS, rng, sha256, generateGroupCode, deriveGroup, tickets, baseline, lanOfHost, hostsOf, makeFinishCode, parseFinishCode, makeSave, readSave, fmtTime, sendRank, readRank, rankPayload, grade, fmtGrade };
 })(typeof window !== "undefined" ? window : globalThis);
